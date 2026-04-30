@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #c2185b;
+  --color-primary-light: #e91e8c;
+  --color-primary-lighter: #f48fb1;
+  --color-primary-pale: #fce4ec;
+  --color-primary-dark: #880e4f;
+  --color-primary-deep: #4a0028;
+
+  --color-accent: #e91e8c;
+  --color-accent-light: #f06292;
+  --color-accent-dark: #ad1457;
+
+  --color-bg: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-bg-section: #fce4ec;
+
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+
+  --color-success: #10b981;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+}
+
+@layer base {
+  body {
+    @apply font-sans antialiased;
+    background-color: #ffffff;
+    color: #4a0028;
+    min-height: 100vh;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    color: #4a0028;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  ::placeholder { color: #f48fb1; }
+  ::-webkit-scrollbar { width: 7px; }
+  ::-webkit-scrollbar-track { background: #fce4ec; }
+  ::-webkit-scrollbar-thumb { background: #f48fb1; border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: #e91e8c; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float { animation: float 3s ease-in-out infinite; }
+
+/* Glass utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(244, 143, 177, 0.3);
+  box-shadow: 0 8px 32px rgba(194, 24, 91, 0.08), 0 1px 0 rgba(255,255,255,0.7) inset;
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(244, 143, 177, 0.35);
+  box-shadow: 0 16px 48px rgba(194, 24, 91, 0.12), 0 1px 0 rgba(255,255,255,0.8) inset;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #c2185b, #e91e8c, #f48fb1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
