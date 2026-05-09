@@ -1,92 +1,97 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FiMapPin, FiUsers, FiSmartphone, FiZap, FiChevronDown } from 'react-icons/fi';
 
 const features = [
-  { icon: FiMapPin, title: 'Real-Time Live Tracking', desc: 'Watch your bus approach on our interactive map. Never miss your ride again.', bg: '#fce4ec', color: '#c2185b' },
-  { icon: FiUsers, title: 'Dedicated Portals', desc: 'Tailored dashboards for Passengers, Drivers, and Administrators.', bg: '#fff0f5', color: '#ad1457' },
-  { icon: FiSmartphone, title: 'Instant Ticketing', desc: 'Book your seat, get digital tickets, and process changes with zero friction.', bg: '#fce4ec', color: '#c2185b' },
-  { icon: FiZap, title: 'Data-Driven Ops', desc: 'Admins monitor fleet movements while drivers maintain direct feedback loops.', bg: '#fff0f5', color: '#880e4f' },
+  { icon: FiMapPin,      title: 'Real-Time Live Tracking', desc: 'Watch your bus approach on our interactive map. Never miss your ride again.'                          },
+  { icon: FiUsers,       title: 'Dedicated Portals',       desc: 'Tailored dashboards for Passengers, Drivers, and Administrators.'                                      },
+  { icon: FiSmartphone,  title: 'Instant Ticketing',       desc: 'Book your seat, get digital tickets, and process changes with zero friction.'                          },
+  { icon: FiZap,         title: 'Data-Driven Ops',         desc: 'Admins monitor fleet movements while drivers maintain direct feedback loops.'                           },
 ];
 
 const faqs = [
-  { q: 'How accurate is the Live Tracking map?', a: 'Our GPS tracking updates every 5 seconds, providing near real-time accuracy within 10 meters.' },
-  { q: 'Can I register as a driver on the platform?', a: 'Yes! Drivers can register through the signup page and select the Driver role during registration.' },
-  { q: 'What happens if my assigned bus breaks down?', a: 'Our admin team is notified instantly and will arrange an alternate bus or issue a full refund.' },
-  { q: 'Can I cancel my ticket from the user portal?', a: 'Yes, cancellations are available up to 2 hours before departure from your My Bookings page.' },
-  { q: 'How do administrators add new routes?', a: 'Admins can add routes, buses, and drivers directly from the Admin Console dashboard.' },
-  { q: 'Is the payment gateway integrated?', a: 'Payment integration is coming soon. Currently, seat selection and booking confirmation are fully functional.' },
+  { q: 'How accurate is the Live Tracking map?',          a: 'Our GPS tracking updates every 5 seconds, providing near real-time accuracy within 10 meters.'                                                    },
+  { q: 'Can I register as a driver on the platform?',     a: 'Yes! Drivers can register through the signup page and select the Driver role during registration.'                                                },
+  { q: 'What happens if my assigned bus breaks down?',    a: 'Our admin team is notified instantly and will arrange an alternate bus or issue a full refund.'                                                    },
+  { q: 'Can I cancel my ticket from the user portal?',    a: 'Yes, cancellations are available up to 2 hours before departure from your My Bookings page.'                                                      },
+  { q: 'How do administrators add new routes?',           a: 'Admins can add routes, buses, and drivers directly from the Admin Console dashboard.'                                                             },
+  { q: 'Is the payment gateway integrated?',              a: 'Payment integration is coming soon. Currently, seat selection and booking confirmation are fully functional.'                                      },
 ];
 
 export default function InfoSection() {
-  const [openFaq, setOpenFaq] = useState(null);
+  const [open, setOpen] = useState(null);
 
   return (
     <section className="py-20 px-4 md:px-8 max-w-7xl mx-auto">
 
-      {/* Why Choose */}
+      {/* Features */}
       <div className="mb-20">
-        <div className="text-center mb-12">
-          <span className="inline-block font-bold text-sm px-4 py-2 rounded-full mb-4"
-            style={{ background: '#fce4ec', color: '#c2185b' }}>
-            Why Tripzo?
-          </span>
-          <h2 className="text-4xl font-black tracking-tight mb-3" style={{ color: '#4a0028' }}>Built for Modern Travel</h2>
-          <p className="font-medium max-w-xl mx-auto" style={{ color: '#c2185b' }}>
+        <div className="text-center mb-10">
+          <span className="badge mb-4">Why Tripzo?</span>
+          <h2 className="text-3xl font-black mb-2" style={{ color: '#1a202c' }}>Built for Modern Travel</h2>
+          <p className="text-sm max-w-md mx-auto" style={{ color: '#718096' }}>
             A complete transportation ecosystem connecting passengers, drivers, and operators.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {features.map(({ icon: Icon, title, desc, bg, color }, idx) => (
-            <div
-              key={idx}
-              className="bg-white rounded-2xl p-6 group transition-all duration-300 hover:-translate-y-1"
-              style={{ border: '1.5px solid #fce4ec', boxShadow: '0 4px 20px rgba(194,24,91,0.06)' }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 12px 40px rgba(194,24,91,0.14)'}
-              onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(194,24,91,0.06)'}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {features.map(({ icon: Icon, title, desc }, idx) => (
+            <motion.div key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.08 }}
+              className="white-card p-6 group"
             >
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform"
-                style={{ background: bg }}>
-                <Icon className="w-6 h-6" style={{ color }} />
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
+                style={{ background: 'rgba(45,212,191,0.12)' }}>
+                <Icon className="w-5 h-5" style={{ color: '#2dd4bf' }} />
               </div>
-              <h3 className="font-black mb-2" style={{ color: '#4a0028' }}>{title}</h3>
-              <p className="text-sm leading-relaxed" style={{ color: '#64748b' }}>{desc}</p>
-            </div>
+              <h3 className="font-black text-sm mb-2" style={{ color: '#1a202c' }}>{title}</h3>
+              <p className="text-xs leading-relaxed" style={{ color: '#718096' }}>{desc}</p>
+            </motion.div>
           ))}
         </div>
       </div>
 
       {/* FAQ */}
-      <div className="rounded-3xl p-8 md:p-12" style={{ background: 'linear-gradient(135deg, #fff0f5, #fce4ec)', border: '1.5px solid #f8bbd0' }}>
-        <div className="text-center mb-10">
-          <h2 className="text-3xl font-black tracking-tight mb-2" style={{ color: '#4a0028' }}>Frequently Asked Questions</h2>
-          <p className="font-medium" style={{ color: '#c2185b' }}>Everything you need to know about Tripzo</p>
+      <div className="rounded-3xl p-8 md:p-12"
+        style={{ background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '1.5rem', boxShadow: '0 4px 24px rgba(0,0,0,0.04)' }}>
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-black mb-1" style={{ color: '#1a202c' }}>Frequently Asked Questions</h2>
+          <p className="text-sm" style={{ color: '#718096' }}>Everything you need to know about Tripzo</p>
         </div>
 
-        <div className="max-w-3xl mx-auto space-y-3">
+        <div className="max-w-2xl mx-auto space-y-2">
           {faqs.map((faq, i) => (
-            <div key={i} className="bg-white rounded-2xl overflow-hidden"
-              style={{ border: '1.5px solid #f8bbd0', boxShadow: '0 2px 10px rgba(194,24,91,0.05)' }}>
-              <button
-                onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                className="w-full flex items-center justify-between px-6 py-5 text-left"
+            <div key={i} className="rounded-2xl overflow-hidden"
+              style={{ background: 'rgba(255,255,255,0.8)', border: '1px solid rgba(45,212,191,0.12)' }}>
+              <button onClick={() => setOpen(open === i ? null : i)}
+                className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors"
+                style={{ background: open === i ? 'rgba(45,212,191,0.05)' : 'transparent' }}
               >
-                <span className="font-bold pr-4" style={{ color: '#4a0028' }}>{faq.q}</span>
-                <FiChevronDown
-                  className="w-5 h-5 flex-shrink-0 transition-transform duration-200"
-                  style={{ color: '#c2185b', transform: openFaq === i ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                />
+                <span className="font-semibold text-sm pr-4" style={{ color: '#1a202c' }}>{faq.q}</span>
+                <motion.div animate={{ rotate: open === i ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                  <FiChevronDown className="w-4 h-4 flex-shrink-0" style={{ color: '#2dd4bf' }} />
+                </motion.div>
               </button>
-              {openFaq === i && (
-                <div className="px-6 pb-5 text-sm leading-relaxed pt-3" style={{ color: '#64748b', borderTop: '1px solid #fff0f5' }}>
-                  {faq.a}
-                </div>
-              )}
+              <AnimatePresence>
+                {open === i && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <p className="px-5 pb-4 text-sm leading-relaxed" style={{ color: '#718096', borderTop: '1px solid rgba(45,212,191,0.08)' }}>
+                      {faq.a}
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ))}
         </div>
       </div>
-
     </section>
   );
 }

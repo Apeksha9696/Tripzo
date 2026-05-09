@@ -51,31 +51,31 @@ export default function ResetPassword() {
   };
 
   const inputStyle = {
-    background: '#fff0f5',
-    border: '1.5px solid #f8bbd0',
-    color: '#4a0028',
+    background: '#f0fdfa', // teal-50
+    border: '1.5px solid #99f6e4', // teal-200
+    color: '#134e4a', // teal-900
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: '#fdf2f8' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4" style={{ background: '#f8fafc' }}>
       <motion.div
         className="max-w-md w-full rounded-3xl overflow-hidden relative"
         style={{
           background: 'rgba(255,255,255,0.95)',
           backdropFilter: 'blur(24px)',
-          border: '1.5px solid #f8bbd0',
-          boxShadow: '0 30px 80px rgba(194,24,91,0.12)',
+          border: '1.5px solid #ccfbf1',
+          boxShadow: '0 30px 80px rgba(45,212,191,0.12)',
         }}
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1, transition: { type: 'spring', damping: 25, stiffness: 300 } }}
       >
-        <div className="h-1.5" style={{ background: 'linear-gradient(90deg, #c2185b, #e91e8c, #f48fb1)' }} />
+        <div className="h-1.5" style={{ background: 'linear-gradient(90deg, #2dd4bf, #14b8a6, #0d9488)' }} />
 
-        <div className="px-8 pt-8 pb-6 relative" style={{ background: 'linear-gradient(135deg, #4a0028, #880e4f)' }}>
+        <div className="px-8 pt-8 pb-6 relative" style={{ background: 'linear-gradient(135deg, #134e4a, #0f766e)' }}>
           <h2 className="text-2xl font-black text-white">
             Create New Password
           </h2>
-          <p className="text-sm mt-1" style={{ color: '#f8bbd0' }}>
+          <p className="text-sm mt-1" style={{ color: '#ccfbf1' }}>
             Enter your new password below.
           </p>
         </div>
@@ -99,29 +99,29 @@ export default function ResetPassword() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-bold mb-1.5" style={{ color: '#4a0028' }}>New Password</label>
+              <label className="block text-sm font-bold mb-1.5" style={{ color: '#134e4a' }}>New Password</label>
               <div className="relative">
-                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#f48fb1' }} />
+                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#2dd4bf' }} />
                 <input type="password" required value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-11 pr-4 py-3.5 rounded-2xl font-semibold outline-none transition-all"
                   style={inputStyle}
-                  onFocus={e => e.currentTarget.style.borderColor = '#c2185b'}
-                  onBlur={e => e.currentTarget.style.borderColor = '#f8bbd0'}
+                  onFocus={e => e.currentTarget.style.borderColor = '#14b8a6'}
+                  onBlur={e => e.currentTarget.style.borderColor = '#99f6e4'}
                   placeholder="••••••••" />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-bold mb-1.5" style={{ color: '#4a0028' }}>Confirm New Password</label>
+              <label className="block text-sm font-bold mb-1.5" style={{ color: '#134e4a' }}>Confirm New Password</label>
               <div className="relative">
-                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#f48fb1' }} />
+                <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#2dd4bf' }} />
                 <input type="password" required value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full pl-11 pr-4 py-3.5 rounded-2xl font-semibold outline-none transition-all"
                   style={inputStyle}
-                  onFocus={e => e.currentTarget.style.borderColor = '#c2185b'}
-                  onBlur={e => e.currentTarget.style.borderColor = '#f8bbd0'}
+                  onFocus={e => e.currentTarget.style.borderColor = '#14b8a6'}
+                  onBlur={e => e.currentTarget.style.borderColor = '#99f6e4'}
                   placeholder="••••••••" />
               </div>
             </div>
@@ -130,7 +130,7 @@ export default function ResetPassword() {
               type="submit"
               disabled={loading || !!success}
               className="w-full py-4 mt-2 text-white rounded-2xl font-black text-sm transition-all disabled:opacity-70 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(135deg, #c2185b, #e91e8c)', boxShadow: '0 10px 30px rgba(194,24,91,0.3)' }}
+              style={{ background: 'linear-gradient(135deg, #2dd4bf, #14b8a6)', boxShadow: '0 10px 30px rgba(45,212,191,0.3)' }}
             >
               {loading ? 'Resetting...' : 'Reset Password'}
             </motion.button>
