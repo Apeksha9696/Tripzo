@@ -386,7 +386,7 @@ const sendBookingConfirmationEmail = async (bookingData) => {
 
     // Send email
     const info = await transporter.sendMail(mailOptions);
-
+    
     console.log('✅ Booking confirmation email sent:', {
       to: bookingData.passengerEmail,
       messageId: info.messageId,
@@ -400,7 +400,7 @@ const sendBookingConfirmationEmail = async (bookingData) => {
       to: bookingData.passengerEmail,
       timestamp: new Date().toISOString()
     });
-
+    
     // Don't throw error - booking should succeed even if email fails
     return false;
   }
@@ -443,7 +443,7 @@ const sendEmail = async (mailData) => {
       to: mailData.to,
       timestamp: new Date().toISOString()
     });
-
+    
     return false;
   }
 };
@@ -463,7 +463,7 @@ const sendPasswordResetEmail = async (email, resetUrl, name) => {
         <style>
           body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
           .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
-          .btn { display: inline-block; padding: 12px 24px; background-color: #0f766e; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
+          .btn { display: inline-block; padding: 12px 24px; background-color: #40e4d6ff; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 20px 0; }
         </style>
       </head>
       <body>
@@ -472,7 +472,7 @@ const sendPasswordResetEmail = async (email, resetUrl, name) => {
           <p>Hello ${name || 'User'},</p>
           <p>You recently requested to reset your password for your Tripzo account. Click the button below to reset it.</p>
           <a href="${resetUrl}" class="btn" style="color: #ffffff; text-decoration: none;">Reset Your Password</a>
-<a href="${resetUrl}" class="btn" style="color: #ffffff; text-decoration: none;">Reset Your Password</a>          <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+          <p>If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
           <p>This password reset link is only valid for the next hour.</p>
           <p>Thanks,<br>The Tripzo Team</p>
         </div>

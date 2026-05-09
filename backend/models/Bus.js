@@ -34,7 +34,8 @@ const busSchema = new mongoose.Schema({
     license: { type: String }
   },
   offer: { type: String, default: '' },
-  bookedSeats: [{ type: String }] // e.g. ["1A", "1B", "2C"]
+  bookedSeats: [{ type: String }], // e.g. ["1A", "1B", "2C"]
+  status: { type: String, enum: ['Active', 'Delayed', 'Cancelled'], default: 'Active' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Bus', busSchema);

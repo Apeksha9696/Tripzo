@@ -26,7 +26,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    // 🔥 IMPORTANT RESPONSE
+    // IMPORTANT RESPONSE
     res.json({
       token,
       user: {

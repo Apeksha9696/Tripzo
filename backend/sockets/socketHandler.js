@@ -1,53 +1,90 @@
 // sockets/socketHandler.js
 const { startSimulation, stopSimulation } = require('../utils/simulation');
 
-// In-memory storage for driver locations (from global)
-const driverLocations = global.driverLocations;
+// In-memory storage
+const driverLocations = global.driverLocations || {};
 
 module.exports = (io) => {
   io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
+    console.log(`🟢 Client connected: ${socket.id}`);
 
-    // Handle client disconnection
+    /* ===============================
+       JOIN BUS ROOM (USER SIDE)
+    =============================== */
+    socket.on('join-bus', (busId) => {
+      if (!busId) return;
+
+      socket.join(`bus-${busId}`);
+      console.log(`📍 ${socket.id} joined bus-${busId}`);
+    });
+
+    socket.on('leave-bus', (busId) => {
+      socket.leave(`bus-${busId}`);
+      console.log(`🚪 ${socket.id} left bus-${busId}`);
+    });
+
+    /* ===============================
+       DRIVER LOCATION UPDATE
+    =============================== */
+    socket.on('driverLocationUpdate', ({ busId, lat, lng }) => {
+      if (!busId || lat == null || lng == null) {
+        console.warn('⚠️ Invalid location data received');
+        return;
+      }
+
+      const locationData = {
+        lat,
+        lng,
+        timestamp: new Date(),
+      };
+
+      // Store latest location
+      driverLocations[busId] = locationData;
+
+      const payload = {
+        busId,
+        ...locationData,
+      };
+
+      // Emit ONLY to users tracking this bus
+      io.to(`bus-${busId}`).emit('locationUpdate', payload);
+
+      console.log(`📡 Location update for bus ${busId}`);
+    });
+
+    /* ===============================
+       DISCONNECT
+    =============================== */
     socket.on('disconnect', () => {
-      console.log('Client disconnected:', socket.id);
-    });
-
-    // Optional: Client can join a room for specific driver updates
-    socket.on('join-driver-room', (driverId) => {
-      socket.join(`driver-${driverId}`);
-      console.log(`Client ${socket.id} joined room for driver ${driverId}`);
-    });
-
-    // Optional: Client can leave a room
-    socket.on('leave-driver-room', (driverId) => {
-      socket.leave(`driver-${driverId}`);
-      console.log(`Client ${socket.id} left room for driver ${driverId}`);
+      console.log(`🔴 Client disconnected: ${socket.id}`);
     });
   });
 
-  // Function to emit location update (called from controller)
+  /* ===============================
+     EXTERNAL EMITTER (Controller)
+  =============================== */
   const emitLocationUpdate = (busId, location) => {
+    if (!busId || !location) return;
+
     const payload = {
       busId,
-      ...location
+      ...location,
     };
 
-    // Emit to all clients
-    io.emit('locationUpdate', payload);
-
-    // Also emit to a room for this bus if clients are listening
+    // Emit only to relevant room
     io.to(`bus-${busId}`).emit('locationUpdate', payload);
   };
 
-  // Function to start simulation (with io instance)
-  const startSimWithIO = () => {
-    return startSimulation(io);
-  };
+  /* ===============================
+     SIMULATION CONTROL
+  =============================== */
+  const startSimWithIO = () => startSimulation(io);
+  const stopSimWithIO = () => stopSimulation(io);
 
   return {
     emitLocationUpdate,
     startSimWithIO,
-    driverLocations // Export for use in controller if needed
+    stopSimWithIO,
+    driverLocations,
   };
 };
