@@ -34,7 +34,7 @@ export default function Checkout() {
     setTimeout(async () => {
       const token = localStorage.getItem('token');
       try {
-        await axios.post('http://localhost:5000/api/bookings', { busId: bus._id, seats: selectedSeats }, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, { busId: bus._id, seats: selectedSeats }, { headers: { Authorization: `Bearer ${token}` } });
         setSuccess(true);
       } catch (err) { alert(err.response?.data?.error || 'Booking Failed'); }
       finally { setLoading(false); }

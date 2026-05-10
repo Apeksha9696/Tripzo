@@ -23,7 +23,7 @@ export default function SearchResults() {
   useEffect(() => {
     const fetchBuses = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/buses/search?from=${from}&to=${to}&date=${date}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/buses/search?from=${from}&to=${to}&date=${date}`);
         setBuses(res.data);
       } catch (e) {
         console.error(e);

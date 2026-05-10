@@ -24,7 +24,7 @@ export default function AuthModal({ type: initialType, onClose }) {
     if (!validDomain(form.email)) { setError('Only gmail.com and outlook.com addresses are allowed.'); return; }
     try {
       const ep = type === 'login' ? '/api/auth/login' : '/api/auth/register';
-      const res = await axios.post(`http://localhost:5000${ep}`, form);
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}${ep}`, form);
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       axios.defaults.headers.common.Authorization = `Bearer ${res.data.token}`;
@@ -41,7 +41,7 @@ export default function AuthModal({ type: initialType, onClose }) {
     try {
       const res2 = await signInWithPopup(auth, new GoogleAuthProvider());
       const token = await res2.user.getIdToken();
-      const res = await axios.post('http://localhost:5000/api/auth/google', { token });
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       axios.defaults.headers.common.Authorization = `Bearer ${res.data.token}`;

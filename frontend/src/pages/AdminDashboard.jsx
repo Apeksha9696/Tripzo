@@ -65,21 +65,21 @@ export default function AdminDashboard() {
 
   const fetchBuses = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/admin/buses', { headers: { Authorization: token } });
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/buses`, { headers: { Authorization: token } });
       if (res.ok) setBuses(await res.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchDrivers = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/admin/drivers', { headers: { Authorization: token } });
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/drivers`, { headers: { Authorization: token } });
       if (res.ok) setDrivers(await res.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchOffers = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/offers');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/offers`);
       if (res.ok) setOffers(await res.json());
     } catch (err) { console.error(err); }
   };
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
   const handleCreateBus = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/admin/buses', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/buses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token },
         body: JSON.stringify(newBus)
@@ -158,7 +158,7 @@ export default function AdminDashboard() {
   const handleUpdateBus = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/buses/${editingBus._id}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/buses/${editingBus._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: token },
         body: JSON.stringify(editingBus)
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
   const handleDeleteBus = async (id) => {
     if (!window.confirm('Are you sure you want to delete this bus?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/buses/${id}`, { method: 'DELETE', headers: { Authorization: token } });
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/buses/${id}`, { method: 'DELETE', headers: { Authorization: token } });
       if (res.ok) fetchBuses();
     } catch (err) { console.error(err); }
   };
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
   const handleCreateOffer = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/admin/offers', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/offers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token },
         body: JSON.stringify(newOffer)
@@ -198,7 +198,7 @@ export default function AdminDashboard() {
   const handleDeleteOffer = async (id) => {
     if (!window.confirm('Delete this offer?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/offers/${id}`, { method: 'DELETE', headers: { Authorization: token } });
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/offers/${id}`, { method: 'DELETE', headers: { Authorization: token } });
       if (res.ok) fetchOffers();
     } catch (err) { console.error(err); }
   };
@@ -206,7 +206,7 @@ export default function AdminDashboard() {
   const handleCreateDriver = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/auth/register-driver', {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register-driver`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: token },
         body: JSON.stringify(newDriver)
@@ -225,7 +225,7 @@ export default function AdminDashboard() {
   const handleDeleteDriver = async (id) => {
     if (!window.confirm('Are you sure you want to remove this driver?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/drivers/${id}`, { method: 'DELETE', headers: { Authorization: token } });
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/drivers/${id}`, { method: 'DELETE', headers: { Authorization: token } });
       if (res.ok) fetchDrivers();
     } catch (err) { console.error(err); }
   };

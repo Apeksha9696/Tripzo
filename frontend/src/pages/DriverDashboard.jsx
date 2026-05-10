@@ -25,7 +25,7 @@ export default function DriverDashboard() {
       try {
         const token = localStorage.getItem('token');
         if (!token) return navigate('/');
-        const res = await axios.get('http://localhost:5000/api/driver/dashboard', { headers: { Authorization: `Bearer ${token}` } });
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/driver/dashboard`, { headers: { Authorization: `Bearer ${token}` } });
         setBuses(res.data);
       } catch (err) {
         setError(err?.response?.status === 403 ? 'Access Denied' : 'Failed to load dashboard');
@@ -56,7 +56,7 @@ export default function DriverDashboard() {
       if (!pos) return;
       try {
         const token = localStorage.getItem('token');
-        await axios.post('http://localhost:5000/api/update-location', { busId, lat: pos.lat, lng: pos.lng }, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.post(`${import.meta.env.VITE_API_URL}/api/update-location`, { busId, lat: pos.lat, lng: pos.lng }, { headers: { Authorization: `Bearer ${token}` } });
         setUpdateStatus(prev => ({ ...prev, [busId]: { type: 'success', message: 'Synced' } }));
       } catch (err) {
         setUpdateStatus(prev => ({ ...prev, [busId]: { type: 'error', message: err?.message || 'Sync failed' } }));
@@ -75,7 +75,7 @@ export default function DriverDashboard() {
     if (!pos) return;
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.post('http://localhost:5000/api/update-location', { busId, lat: pos.lat, lng: pos.lng }, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/update-location`, { busId, lat: pos.lat, lng: pos.lng }, { headers: { Authorization: `Bearer ${token}` } });
       setBuses(prev => prev.map(b => b._id === busId ? { ...b, currentLocation: res.data.location } : b));
       setUpdateStatus(prev => ({ ...prev, [busId]: { type: 'success', message: 'Sent successfully' } }));
     } catch (err) {

@@ -85,7 +85,7 @@ export default function Tracking() {
   useEffect(() => {
     const fetchRoute = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/simulated-route');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/simulated-route`);
         if (response.data.success && response.data.route) {
           setSimulationRoute(response.data.route);
         }
@@ -96,7 +96,7 @@ export default function Tracking() {
 
     const fetchStoppages = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/route-stoppages');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/route-stoppages`);
         if (response.data.success && response.data.stoppages) {
           setStoppages(response.data.stoppages);
         }
@@ -107,7 +107,7 @@ export default function Tracking() {
 
     const fetchStatus = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/simulation-status');
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/simulation-status`);
         if (response.data.success && response.data.status) {
           setSimulationStatus(response.data.status);
           setSimulating(response.data.status.isRunning);
@@ -168,7 +168,7 @@ export default function Tracking() {
       return;
     }
     try {
-      const response = await axios.post('http://localhost:5000/api/start-simulation');
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/start-simulation`);
       if (response.data.success) {
         setSimulating(true);
         setSimulationStatus(prev => ({ ...prev, isRunning: true }));
@@ -182,7 +182,7 @@ export default function Tracking() {
 
   const stopSimulation = async () => {
     try {
-      const response = await axios.post('http://localhost:5000/api/stop-simulation');
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/stop-simulation`);
       if (response.data.success) {
         setSimulating(false);
         setSimulationStatus(prev => ({ ...prev, isRunning: false }));

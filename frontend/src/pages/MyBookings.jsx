@@ -16,7 +16,7 @@ export default function MyBookings() {
       const token = localStorage.getItem('token');
       if (!token) { navigate('/'); window.dispatchEvent(new CustomEvent('openAuthModal', { detail: 'login' })); return; }
       try {
-        const res = await axios.get('http://localhost:5000/api/bookings/my-bookings', { headers: { Authorization: `Bearer ${token}` } });
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/my-bookings`, { headers: { Authorization: `Bearer ${token}` } });
         setBookings(res.data);
       } catch (err) {
         if (err.response?.status === 401) { navigate('/'); window.dispatchEvent(new CustomEvent('openAuthModal', { detail: 'login' })); return; }

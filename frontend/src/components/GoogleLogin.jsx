@@ -27,7 +27,7 @@ export default function GoogleLogin() {
 
       // Bonus: Send Firebase ID token to backend API
       const token = await user.getIdToken();
-      await axios.post('http://localhost:5000/api/auth/google', { token });
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token });
 
       // Redirect user to dashboard
       navigate('/dashboard');
