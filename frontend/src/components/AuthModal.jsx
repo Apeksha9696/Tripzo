@@ -115,6 +115,7 @@ export default function AuthModal({ type: initialType, onClose }) {
                 <div className="relative">
                   <FiUser className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color:'#2dd4bf' }} />
                   <input type="text" required value={form.name} placeholder="Full Name"
+                    autoComplete="off"
                     onChange={e => setForm({ ...form, name:e.target.value })}
                     className={inputCls}
                     onFocus={e => e.currentTarget.style.borderColor='#2dd4bf'}
@@ -125,6 +126,7 @@ export default function AuthModal({ type: initialType, onClose }) {
               <div className="relative">
                 <FiMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color:'#2dd4bf' }} />
                 <input type="email" required value={form.email} placeholder="you@gmail.com"
+                  autoComplete="off"
                   onChange={e => setForm({ ...form, email:e.target.value })}
                   className={inputCls}
                   onFocus={e => e.currentTarget.style.borderColor='#2dd4bf'}
@@ -134,6 +136,7 @@ export default function AuthModal({ type: initialType, onClose }) {
               <div className="relative">
                 <FiLock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color:'#2dd4bf' }} />
                 <input type="password" required value={form.password} placeholder="••••••••"
+                  autoComplete="new-password"
                   onChange={e => setForm({ ...form, password:e.target.value })}
                   className={inputCls}
                   onFocus={e => e.currentTarget.style.borderColor='#2dd4bf'}

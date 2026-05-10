@@ -111,6 +111,7 @@ export default function Login() {
               type="email"
               required
               value={formData.email}
+              autoComplete="off"
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
@@ -128,6 +129,7 @@ export default function Login() {
               type="password"
               required
               value={formData.password}
+              autoComplete="new-password"
               onChange={(e) =>
                 setFormData({ ...formData, password: e.target.value })
               }
