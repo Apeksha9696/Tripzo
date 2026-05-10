@@ -20,15 +20,16 @@ const locationRoutes = require('./routes/locationRoutes');
 const socketHandler = require('./sockets/socketHandler');
 const locationController = require('./controllers/locationController');
 const { verifyEmailConfig, sendBookingConfirmationEmail, sendPasswordResetEmail } = require('./services/mailService');
-const firebaseAdmin = require('firebase-admin');
-const serviceAccount = require('./tripzo-dade4-firebase-adminsdk-fbsvc-e8542bc701.json');
+const admin = require("firebase-admin");
 
-firebaseAdmin.initializeApp({
-  credential: firebaseAdmin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  })
+const serviceAccount = {
+  projectId: process.env.FIREBASE_PROJECT_ID,
+  clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+};
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
 });
 
 const allowedEmailDomains = ['gmail.com', 'outlook.com'];
@@ -236,7 +237,7 @@ app.post('/api/auth/google', async (req, res) => {
     if (!token) return res.status(400).json({ error: 'No token provided' });
 
     // Verify token with Firebase Admin
-    const decodedToken = await firebaseAdmin.auth().verifyIdToken(token);
+    const decodedToken = await admin.auth().verifyIdToken(token);
     const { email, name } = decodedToken;
 
     if (!isAllowedEmail(email)) {
