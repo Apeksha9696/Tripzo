@@ -43,7 +43,10 @@ const app = express();
 
 // Enable CORS
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:5173"], // Added 5173 as your Vite frontend runs there
+  origin: [
+    "http://localhost:5173",
+    "https://your-frontend.vercel.app"
+  ],
   credentials: true
 }));
 
@@ -157,10 +160,10 @@ app.post('/api/auth/register', async (req, res) => {
 
     const user = new User({ name, email, password: hashedPassword, role: 'user' });
     await user.save();
-    
+
     const payload = { id: user._id, role: user.role };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
-    
+
     res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -263,12 +266,12 @@ app.post('/api/auth/google', async (req, res) => {
       const salt = await bcrypt.genSalt(10);
       const randomPassword = Math.random().toString(36).slice(-8);
       const hashedPassword = await bcrypt.hash(randomPassword, salt);
-      
-      user = new User({ 
-        name: name || 'Google User', 
-        email, 
-        password: hashedPassword, 
-        role: 'user' 
+
+      user = new User({
+        name: name || 'Google User',
+        email,
+        password: hashedPassword,
+        role: 'user'
       });
       await user.save();
       role = 'user';
@@ -317,7 +320,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     await user.save();
 
     const resetUrl = `http://localhost:5173/reset-password/${token}`;
-    
+
     // Send email
     await sendPasswordResetEmail(user.email, resetUrl, user.name);
 
@@ -375,7 +378,7 @@ app.get('/api/buses/search', async (req, res) => {
     if (from) query.from = from;
     if (to) query.to = to;
     if (date) query.date = date; // simple string match for exact date
-    
+
     const buses = await Bus.find(query);
     res.json(buses);
   } catch (err) {
@@ -397,9 +400,9 @@ app.get('/api/buses/:id', async (req, res) => {
 app.post('/api/bookings', authMiddleware, async (req, res) => {
   try {
     const { busId, seats } = req.body;
-    
+
     if (!seats || seats.length === 0) {
-        return res.status(400).json({ error: 'No seats provided' });
+      return res.status(400).json({ error: 'No seats provided' });
     }
 
     const bus = await Bus.findById(busId);
@@ -518,7 +521,7 @@ app.get('/api/driver/dashboard', authMiddleware, async (req, res) => {
 
     // Fetch all buses
     const buses = await Bus.find().lean();
-    
+
     // Fetch all bookings for all buses, map them
     const bookings = await Booking.find().populate('user', 'name email').lean();
 
@@ -597,7 +600,7 @@ app.get('/api/admin/stats', authMiddleware, adminMiddleware, async (req, res) =>
     const totalDrivers = await Driver.countDocuments();
     const totalUsers = await User.countDocuments({ role: 'user' });
     const totalBookings = await Booking.countDocuments();
-    
+
     const bookings = await Booking.find();
     const totalRevenue = bookings.reduce((sum, b) => sum + b.totalPrice, 0);
 
