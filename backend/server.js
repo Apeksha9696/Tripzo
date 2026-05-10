@@ -106,7 +106,7 @@ const ensureDefaultAccounts = async () => {
   }
 };
 
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log('MongoDB Connected');
     await ensureDefaultAccounts();
