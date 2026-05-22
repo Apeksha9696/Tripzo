@@ -18,6 +18,10 @@ services:
         value: "<Your Firebase Client Email>"
       - key: FIREBASE_PRIVATE_KEY
         value: "<Your Firebase Private Key with newlines escaped>"
+      - key: FRONTEND_URL
+        value: "https://tripzo-app.vercel.app"
+      - key: VITE_APP_URL
+        value: "https://tripzo-app.vercel.app"
       - key: NODE_ENV
         value: "production"
     region: oregon

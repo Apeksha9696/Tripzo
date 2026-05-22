@@ -5,7 +5,7 @@ import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { SocketProvider } from './contexts/SocketContext';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import SearchResults from './pages/SearchResults';
@@ -107,7 +107,7 @@ const AnimatedRoutes = () => {
         <Route path="/checkout/:id" element={<UserRoute><Checkout /></UserRoute>} />
         <Route path="/my-bookings" element={<UserRoute><MyBookings /></UserRoute>} />
 
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<UserRoute><Dashboard /></UserRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/tracking" element={<Tracking />} />

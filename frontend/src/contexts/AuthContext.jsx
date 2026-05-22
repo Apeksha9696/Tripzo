@@ -5,6 +5,9 @@ const AuthContext = createContext();
 const STORAGE_TOKEN = 'token';
 const STORAGE_USER = 'user';
 
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
+axios.defaults.withCredentials = true;
+
 const parseUser = () => {
   try {
     const stored = localStorage.getItem(STORAGE_USER);

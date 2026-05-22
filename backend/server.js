@@ -65,6 +65,10 @@ const allowedOrigins = [
   process.env.PUBLIC_URL
 ].filter(Boolean);
 
+console.log('CORS allowed origins:', allowedOrigins);
+console.log('JWT_SECRET present:', Boolean(process.env.JWT_SECRET));
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL || 'not set');
+
 app.use(cors({
   origin: function(origin, callback) {
     if (!origin) return callback(null, true);
@@ -330,6 +334,8 @@ app.post('/api/auth/login', async (req, res) => {
 
     const finalRole = user.role || role;
 
+    console.log('Login success:', { email, role: finalRole });
+
     const token = jwt.sign(
       {
         id: user._id,
@@ -390,6 +396,8 @@ app.post('/api/auth/google', async (req, res) => {
     if (!userEmail) {
       return res.status(400).json({ error: 'Email is required' });
     }
+
+    console.log('Google auth request for email:', userEmail);
 
     // Find or create user
     let user = await User.findOne({ email: userEmail });
