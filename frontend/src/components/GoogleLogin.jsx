@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { auth } from '../firebase'; // Adjust path if necessary
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function GoogleLogin() {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { login } = useAuth();
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
@@ -32,9 +34,8 @@ export default function GoogleLogin() {
 
       // Bonus: Send Firebase ID token to backend API
       const token = await user.getIdToken();
-      await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token });
-
-      // Redirect user to dashboard
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token });
+      login(res.data.token, res.data.user);
       navigate('/dashboard');
       
     } catch (err) {

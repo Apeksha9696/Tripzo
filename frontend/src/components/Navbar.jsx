@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaBus } from 'react-icons/fa';
 import { FiMenu, FiX, FiMapPin, FiLogOut, FiBookOpen, FiSettings, FiHelpCircle, FiChevronDown } from 'react-icons/fi';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -10,16 +11,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
-  const [auth, setAuth] = useState({
-    token: localStorage.getItem('token'),
-    user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null
-  });
-
-  useEffect(() => {
-    const h = () => setAuth({ token: localStorage.getItem('token'), user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null });
-    window.addEventListener('authChange', h);
-    return () => window.removeEventListener('authChange', h);
-  }, []);
+  const { auth, logout, isAuthenticated } = useAuth();
 
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 10);
@@ -30,9 +22,7 @@ export default function Navbar() {
   useEffect(() => { setIsMenuOpen(false); setUserDropdown(false); }, [location.pathname]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.dispatchEvent(new Event('authChange'));
+    logout();
     navigate('/');
   };
 
@@ -40,7 +30,7 @@ export default function Navbar() {
 
   const navLinks = [
     { to: '/help', label: 'Help', icon: FiHelpCircle },
-    ...(auth.token && auth.user && auth.user.role !== 'driver'
+    ...(isAuthenticated && auth.user?.role !== 'driver'
       ? [{ to: '/tracking', label: 'Live Tracking', icon: FiMapPin }] : []),
   ];
 
@@ -114,7 +104,7 @@ export default function Navbar() {
                 </Link>
               ))}
 
-              {auth.token && auth.user ? (
+              {isAuthenticated && auth.user ? (
                 <div className="flex items-center gap-1 ml-2 pl-2" style={{ borderLeft: '1px solid rgba(45,212,191,0.2)' }}>
                   {userLinks.map((link) => (
                     <Link key={link.to} to={link.to} style={linkStyle(isActive(link.to))}
@@ -236,7 +226,7 @@ export default function Navbar() {
                 boxShadow: '0 16px 48px rgba(45,212,191,0.12)',
               }}
             >
-              {auth.token && auth.user && (
+              {isAuthenticated && auth.user && (
                 <div className="flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid rgba(45,212,191,0.1)', background: 'rgba(230,255,250,0.4)' }}>
                   <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black"
                     style={{ background: 'linear-gradient(135deg, #2dd4bf, #14b8a6)' }}>
@@ -249,7 +239,7 @@ export default function Navbar() {
                 </div>
               )}
               <div className="p-3 space-y-1">
-                {[...navLinks, ...(auth.token && auth.user ? userLinks : [])].map((link) => (
+                {[...navLinks, ...(isAuthenticated && auth.user ? userLinks : [])].map((link) => (
                   <Link key={link.to} to={link.to} onClick={() => setIsMenuOpen(false)}
                     className="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm transition-all"
                     style={{ color: isActive(link.to) ? '#0f766e' : '#4a5568', background: isActive(link.to) ? 'rgba(45,212,191,0.1)' : 'transparent' }}
@@ -262,7 +252,7 @@ export default function Navbar() {
                     {link.label}
                   </Link>
                 ))}
-                {auth.token && auth.user ? (
+                {isAuthenticated && auth.user ? (
                   <>
                     <hr style={{ borderColor: 'rgba(45,212,191,0.1)', margin: '4px 0' }} />
                     <button onClick={handleLogout}

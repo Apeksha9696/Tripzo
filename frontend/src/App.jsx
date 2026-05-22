@@ -2,9 +2,10 @@ import React from 'react';
 import { getRedirectResult } from 'firebase/auth';
 import { auth } from './firebase';
 import axios from 'axios';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { SocketProvider } from './contexts/SocketContext';
+import { AuthProvider } from './contexts/AuthContext';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import SearchResults from './pages/SearchResults';
@@ -18,22 +19,31 @@ import AuthModal from './components/AuthModal';
 import AdminDashboard from './pages/AdminDashboard';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import Dashboard from './pages/Dashboard';
 
 
 // ✅ USER ROUTE (blocks driver + admin)
 const UserRoute = ({ children }) => {
-  try {
-    const user = JSON.parse(localStorage.getItem('user'));
+  const { auth, isAuthenticated } = useAuth();
+  const location = useLocation();
 
-    if (user?.role === 'driver') {
-      return <Navigate to="/driver-dashboard" replace />;
-    }
+  if (!auth.ready) {
+    return null;
+  }
 
-    if (user?.role === 'admin') {
-      return <Navigate to="/admin-dashboard" replace />;
-    }
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ returnTo: location.pathname, returnState: location.state }} />;
+  }
 
-  } catch (e) {}
+  if (auth.user.role === 'driver') {
+    return <Navigate to="/driver-dashboard" replace />;
+  }
+
+  if (auth.user.role === 'admin') {
+    return <Navigate to="/admin-dashboard" replace />;
+  }
 
   return children;
 };
@@ -41,44 +51,54 @@ const UserRoute = ({ children }) => {
 
 // ✅ DRIVER ROUTE
 const DriverRoute = ({ children }) => {
-  try {
-    const user = JSON.parse(localStorage.getItem('user'));
+  const { auth, isAuthenticated } = useAuth();
+  const location = useLocation();
 
-    if (user?.role === 'driver') {
-      return children;
-    }
+  if (!auth.ready) {
+    return null;
+  }
 
-  } catch (e) {}
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ returnTo: location.pathname, returnState: location.state }} />;
+  }
 
-  return <Navigate to="/" replace />;
+  if (auth.user.role !== 'driver') {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
 };
 
 
 // ✅ ADMIN ROUTE (FIXED)
 const AdminRoute = ({ children }) => {
-  try {
-    const user = JSON.parse(localStorage.getItem('user'));
+  const { auth, isAuthenticated } = useAuth();
+  const location = useLocation();
 
-    if (user?.role === 'admin') {
-      return children;
-    }
+  if (!auth.ready) {
+    return null;
+  }
 
-  } catch (e) {}
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ returnTo: location.pathname, returnState: location.state }} />;
+  }
 
-  return <Navigate to="/" replace />;
+  if (auth.user.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
 };
 
 
 // ✅ ROUTES WITH RE-RENDER FIX
 const AnimatedRoutes = () => {
   const location = useLocation();
-
-  // 🔥 IMPORTANT: forces refresh when login/logout happens
-  const token = localStorage.getItem('token');
+  const { auth } = useAuth();
 
   return (
     <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname + token}>
+      <Routes location={location} key={location.pathname + (auth.token || '')}>
 
         {/* User routes */}
         <Route path="/" element={<Home />} />
@@ -87,6 +107,9 @@ const AnimatedRoutes = () => {
         <Route path="/checkout/:id" element={<UserRoute><Checkout /></UserRoute>} />
         <Route path="/my-bookings" element={<UserRoute><MyBookings /></UserRoute>} />
 
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
         <Route path="/tracking" element={<Tracking />} />
         <Route path="/help" element={<Help />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -107,8 +130,8 @@ const AnimatedRoutes = () => {
 // ✅ MAIN APP
 const LayoutWrapper = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const hideNavbar = ['/admin-dashboard', '/driver-dashboard', '/forgot-password'].includes(location.pathname) || location.pathname.startsWith('/reset-password');
-  
   const [authModal, setAuthModal] = React.useState(null);
 
   React.useEffect(() => {
@@ -123,6 +146,30 @@ const LayoutWrapper = () => {
       window.removeEventListener('closeAuthModal', handleCloseAuth);
     };
   }, []);
+
+  React.useEffect(() => {
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          const idToken = await result.user.getIdToken();
+          const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token: idToken });
+          console.debug('Firebase redirect result', { user: res.data.user, role: res.data.user.role });
+          localStorage.setItem('token', res.data.token);
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+          axios.defaults.headers.common.Authorization = `Bearer ${res.data.token}`;
+          window.dispatchEvent(new Event('authChange'));
+          if (res.data.user.role === 'admin') navigate('/admin-dashboard');
+          else if (res.data.user.role === 'driver') navigate('/driver-dashboard');
+          else navigate('/dashboard');
+        }
+      } catch (err) {
+        console.warn('No redirect auth result or failed to process it', err?.message || err);
+      }
+    };
+
+    handleRedirect();
+  }, [navigate]);
 
   return (
     <div className="min-h-screen bg-brand-bg flex flex-col app-shell">
@@ -143,34 +190,12 @@ const LayoutWrapper = () => {
 };
 
 function App() {
-  React.useEffect(() => {
-    // Handle Firebase redirect result (production redirect-based Google login)
-    const handleRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          const idToken = await result.user.getIdToken();
-          const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token: idToken });
-          localStorage.setItem('token', res.data.token);
-          localStorage.setItem('user', JSON.stringify(res.data.user));
-          axios.defaults.headers.common.Authorization = `Bearer ${res.data.token}`;
-          window.dispatchEvent(new Event('authChange'));
-          if (res.data.user.role === 'admin') window.location.href = '/admin-dashboard';
-          else if (res.data.user.role === 'driver') window.location.href = '/driver-dashboard';
-          else window.location.reload();
-        }
-      } catch (err) {
-        // ignore when there is no redirect result
-        console.warn('No redirect auth result or failed to process it', err?.message || err);
-      }
-    };
-
-    handleRedirect();
-  }, []);
   return (
     <SocketProvider>
       <Router>
-        <LayoutWrapper />
+        <AuthProvider>
+          <LayoutWrapper />
+        </AuthProvider>
       </Router>
     </SocketProvider>
   );

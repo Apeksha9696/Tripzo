@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
 
 const pageVariants = {
   initial: { opacity: 0, scale: 0.98 },
@@ -14,6 +15,7 @@ export default function Signup() {
   const location = useLocation();
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
+  const { login } = useAuth();
   const allowedDomains = ['gmail.com', 'outlook.com'];
 
   const isValidDomain = (email) => {
@@ -30,16 +32,13 @@ export default function Signup() {
     }
     try {
       const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, formData);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      
-      window.dispatchEvent(new Event('authChange'));
+      login(res.data.token, res.data.user);
 
       const returnTo = location.state?.returnTo;
       if (returnTo) {
         navigate(returnTo, { state: location.state?.returnState });
       } else {
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Registration failed');

@@ -57,22 +57,26 @@ app.set('trust proxy', 1);
 // CORS - allow only configured origins and support credentials
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:3000',
   'https://tripzo-app.vercel.app',
-  'https://www.tripzo-app.vercel.app'
-];
+  'https://www.tripzo-app.vercel.app',
+  process.env.FRONTEND_URL,
+  process.env.VITE_APP_URL,
+  process.env.PUBLIC_URL
+].filter(Boolean);
 
 app.use(cors({
   origin: function(origin, callback) {
-    // allow requests with no origin like mobile apps or curl
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
     }
-    return callback(new Error('CORS policy: Origin not allowed'));
+    return callback(new Error(`CORS policy: Origin not allowed - ${origin}`));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['Authorization']
 }));
 
 // Set COOP/COEP headers to allow popup-based login windows to communicate

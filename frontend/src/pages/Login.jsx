@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
 
 const pageVariants = {
   initial: { opacity: 0, scale: 0.98 },
@@ -15,6 +16,7 @@ export default function Login() {
 
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
+  const { login } = useAuth();
 
   const allowedDomains = ['gmail.com', 'outlook.com'];
 
@@ -39,33 +41,18 @@ export default function Login() {
         formData
       );
 
-      // ✅ Store token & user properly
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
+      login(res.data.token, res.data.user);
 
-      // ✅ Set default header for future requests
-      axios.defaults.headers.common.Authorization = `Bearer ${res.data.token}`;
-
-      // ✅ Update navbar / global auth state
-      window.dispatchEvent(new Event('authChange'));
-
-      // 🔍 Debug (optional)
-      console.log('Logged in user:', res.data.user);
-
-      // ✅ REDIRECT LOGIC (FIXED)
       const returnTo = location.state?.returnTo;
 
       if (returnTo) {
         navigate(returnTo, { state: location.state?.returnState });
-
       } else if (res.data.user.role === 'admin') {
-        navigate('/admin-dashboard');   // 🔥 ADMIN FIX
-
+        navigate('/admin-dashboard');
       } else if (res.data.user.role === 'driver') {
         navigate('/driver-dashboard');
-
       } else {
-        navigate('/');
+        navigate('/dashboard');
       }
 
     } catch (err) {

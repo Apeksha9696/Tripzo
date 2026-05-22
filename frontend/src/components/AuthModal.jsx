@@ -3,10 +3,14 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaBus } from 'react-icons/fa';
 import { FiX, FiMail, FiLock, FiUser, FiAlertCircle } from 'react-icons/fi';
+import { useNavigate } from 'react-router-dom';
 import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { auth } from '../firebase';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function AuthModal({ type: initialType, onClose }) {
+  const navigate = useNavigate();
+  const { login } = useAuth();
   const [type, setType]       = useState(initialType || 'login');
   const [form, setForm]       = useState({ name:'', email:'', password:'' });
   const [error, setError]     = useState('');
@@ -25,15 +29,14 @@ export default function AuthModal({ type: initialType, onClose }) {
     try {
       const ep = type === 'login' ? '/api/auth/login' : '/api/auth/register';
       const res = await axios.post(`${import.meta.env.VITE_API_URL}${ep}`, form);
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      axios.defaults.headers.common.Authorization = `Bearer ${res.data.token}`;
-      window.dispatchEvent(new Event('authChange'));
+      login(res.data.token, res.data.user);
       onClose();
-      if (res.data.user.role === 'admin')  window.location.href = '/admin-dashboard';
-      else if (res.data.user.role === 'driver') window.location.href = '/driver-dashboard';
-      else window.location.reload();
-    } catch (err) { setError(err.response?.data?.error || (type === 'login' ? 'Login failed' : 'Registration failed')); }
+      if (res.data.user.role === 'admin') navigate('/admin-dashboard');
+      else if (res.data.user.role === 'driver') navigate('/driver-dashboard');
+      else navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.error || (type === 'login' ? 'Login failed' : 'Registration failed'));
+    }
   };
 
   const handleGoogle = async () => {
@@ -48,15 +51,14 @@ export default function AuthModal({ type: initialType, onClose }) {
       const res2 = await signInWithPopup(auth, new GoogleAuthProvider());
       const token = await res2.user.getIdToken();
       const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token });
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      axios.defaults.headers.common.Authorization = `Bearer ${res.data.token}`;
-      window.dispatchEvent(new Event('authChange'));
+      login(res.data.token, res.data.user);
       onClose();
-      if (res.data.user.role === 'admin')  window.location.href = '/admin-dashboard';
-      else if (res.data.user.role === 'driver') window.location.href = '/driver-dashboard';
-      else window.location.reload();
-    } catch (err) { setError(err.response?.data?.error || err.message || 'Google login failed.'); }
+      if (res.data.user.role === 'admin') navigate('/admin-dashboard');
+      else if (res.data.user.role === 'driver') navigate('/driver-dashboard');
+      else navigate('/dashboard');
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Google login failed.');
+    }
     finally { setGLoad(false); }
   };
 
