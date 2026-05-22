@@ -29,22 +29,34 @@ const UserRoute = ({ children }) => {
   const { auth, isAuthenticated } = useAuth();
   const location = useLocation();
 
+  console.log('[UserRoute] Checking access:', {
+    ready: auth.ready,
+    authenticated: isAuthenticated,
+    role: auth.user?.role,
+    path: location.pathname
+  });
+
   if (!auth.ready) {
+    console.log('[UserRoute] Auth not ready, showing loading...');
     return null;
   }
 
   if (!isAuthenticated) {
+    console.log('[UserRoute] Not authenticated, redirecting to login');
     return <Navigate to="/login" replace state={{ returnTo: location.pathname, returnState: location.state }} />;
   }
 
   if (auth.user.role === 'driver') {
+    console.log('[UserRoute] User is driver, redirecting to driver-dashboard');
     return <Navigate to="/driver-dashboard" replace />;
   }
 
   if (auth.user.role === 'admin') {
+    console.log('[UserRoute] User is admin, redirecting to admin-dashboard');
     return <Navigate to="/admin-dashboard" replace />;
   }
 
+  console.log('[UserRoute] Access granted for user:', auth.user.email);
   return children;
 };
 
@@ -54,18 +66,29 @@ const DriverRoute = ({ children }) => {
   const { auth, isAuthenticated } = useAuth();
   const location = useLocation();
 
+  console.log('[DriverRoute] Checking access:', {
+    ready: auth.ready,
+    authenticated: isAuthenticated,
+    role: auth.user?.role,
+    path: location.pathname
+  });
+
   if (!auth.ready) {
+    console.log('[DriverRoute] Auth not ready, showing loading...');
     return null;
   }
 
   if (!isAuthenticated) {
+    console.log('[DriverRoute] Not authenticated, redirecting to login');
     return <Navigate to="/login" replace state={{ returnTo: location.pathname, returnState: location.state }} />;
   }
 
   if (auth.user.role !== 'driver') {
+    console.log('[DriverRoute] User is not driver, redirecting to home. Role:', auth.user.role);
     return <Navigate to="/" replace />;
   }
 
+  console.log('[DriverRoute] Access granted for driver:', auth.user.email);
   return children;
 };
 
@@ -75,18 +98,29 @@ const AdminRoute = ({ children }) => {
   const { auth, isAuthenticated } = useAuth();
   const location = useLocation();
 
+  console.log('[AdminRoute] Checking access:', {
+    ready: auth.ready,
+    authenticated: isAuthenticated,
+    role: auth.user?.role,
+    path: location.pathname
+  });
+
   if (!auth.ready) {
+    console.log('[AdminRoute] Auth not ready, showing loading...');
     return null;
   }
 
   if (!isAuthenticated) {
+    console.log('[AdminRoute] Not authenticated, redirecting to login');
     return <Navigate to="/login" replace state={{ returnTo: location.pathname, returnState: location.state }} />;
   }
 
   if (auth.user.role !== 'admin') {
+    console.log('[AdminRoute] User is not admin, redirecting to home. Role:', auth.user.role);
     return <Navigate to="/" replace />;
   }
 
+  console.log('[AdminRoute] Access granted for admin:', auth.user.email);
   return children;
 };
 
@@ -131,6 +165,7 @@ const AnimatedRoutes = () => {
 const LayoutWrapper = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { login } = useAuth();
   const hideNavbar = ['/admin-dashboard', '/driver-dashboard', '/forgot-password'].includes(location.pathname) || location.pathname.startsWith('/reset-password');
   const [authModal, setAuthModal] = React.useState(null);
 
@@ -147,29 +182,55 @@ const LayoutWrapper = () => {
     };
   }, []);
 
+  // Handle Firebase redirect result (for production redirect-based OAuth)
   React.useEffect(() => {
     const handleRedirect = async () => {
       try {
+        console.log('[App] Checking for Firebase redirect result...');
         const result = await getRedirectResult(auth);
+        
         if (result && result.user) {
+          console.log('[App] Firebase redirect result received:', result.user.email);
+          
           const idToken = await result.user.getIdToken();
-          const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token: idToken });
-          console.debug('Firebase redirect result', { user: res.data.user, role: res.data.user.role });
-          localStorage.setItem('token', res.data.token);
-          localStorage.setItem('user', JSON.stringify(res.data.user));
-          axios.defaults.headers.common.Authorization = `Bearer ${res.data.token}`;
-          window.dispatchEvent(new Event('authChange'));
-          if (res.data.user.role === 'admin') navigate('/admin-dashboard');
-          else if (res.data.user.role === 'driver') navigate('/driver-dashboard');
-          else navigate('/dashboard');
+          console.log('[App] Firebase ID token obtained, sending to backend...');
+          
+          const API_URL = import.meta.env.VITE_API_URL;
+          const response = await axios.post(`${API_URL}/api/auth/google`, { token: idToken }, {
+            withCredentials: true,
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          console.log('[App] Backend response received:', {
+            userId: response.data.user.id,
+            email: response.data.user.email,
+            role: response.data.user.role
+          });
+          
+          // Use auth context to store credentials
+          login(response.data.token, response.data.user);
+          
+          // Redirect based on role
+          console.log('[App] Redirecting based on role:', response.data.user.role);
+          if (response.data.user.role === 'admin') {
+            navigate('/admin-dashboard', { replace: true });
+          } else if (response.data.user.role === 'driver') {
+            navigate('/driver-dashboard', { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+        } else {
+          console.log('[App] No Firebase redirect result found');
         }
       } catch (err) {
-        console.warn('No redirect auth result or failed to process it', err?.message || err);
+        if (err.code !== 'auth/no-redirect-user') {
+          console.error('[App] Error handling Firebase redirect:', err.message);
+        }
       }
     };
 
     handleRedirect();
-  }, [navigate]);
+  }, [navigate, login]);
 
   return (
     <div className="min-h-screen bg-brand-bg flex flex-col app-shell">

@@ -29,33 +29,46 @@ export default function Login() {
     e.preventDefault();
     setError('');
 
+    console.log('[Login] Form submitted with email:', formData.email);
+
     // ✅ Email domain check
     if (!isValidDomain(formData.email)) {
+      console.warn('[Login] Email domain not allowed:', formData.email);
       setError('Only gmail.com and outlook.com email addresses are allowed.');
       return;
     }
 
     try {
+      console.log('[Login] Sending login request to backend...');
       const res = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/auth/login`,
         formData
       );
 
+      console.log('[Login] Backend response received:', {
+        userId: res.data.user.id,
+        email: res.data.user.email,
+        role: res.data.user.role
+      });
+
       login(res.data.token, res.data.user);
 
       const returnTo = location.state?.returnTo;
 
+      console.log('[Login] Redirecting based on role:', res.data.user.role, 'returnTo:', returnTo);
+
       if (returnTo) {
-        navigate(returnTo, { state: location.state?.returnState });
+        navigate(returnTo, { state: location.state?.returnState, replace: true });
       } else if (res.data.user.role === 'admin') {
-        navigate('/admin-dashboard');
+        navigate('/admin-dashboard', { replace: true });
       } else if (res.data.user.role === 'driver') {
-        navigate('/driver-dashboard');
+        navigate('/driver-dashboard', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
 
     } catch (err) {
+      console.error('[Login] Error:', err.response?.status, err.response?.data?.error);
       setError(err.response?.data?.error || 'Login failed');
     }
   };

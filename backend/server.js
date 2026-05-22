@@ -55,32 +55,36 @@ const app = express();
 app.set('trust proxy', 1);
 
 // CORS - allow only configured origins and support credentials
+const FRONTEND_URL = process.env.FRONTEND_URL || 'https://tripzo.vercel.app';
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
+  'https://tripzo.vercel.app',
+  'https://www.tripzo.vercel.app',
   'https://tripzo-app.vercel.app',
   'https://www.tripzo-app.vercel.app',
-  process.env.FRONTEND_URL,
-  process.env.VITE_APP_URL,
-  process.env.PUBLIC_URL
+  FRONTEND_URL
 ].filter(Boolean);
 
-console.log('CORS allowed origins:', allowedOrigins);
-console.log('JWT_SECRET present:', Boolean(process.env.JWT_SECRET));
-console.log('FRONTEND_URL:', process.env.FRONTEND_URL || 'not set');
+console.log('[STARTUP] CORS allowed origins:', allowedOrigins);
+console.log('[STARTUP] JWT_SECRET present:', Boolean(process.env.JWT_SECRET));
+console.log('[STARTUP] FRONTEND_URL:', FRONTEND_URL);
+console.log('[STARTUP] NODE_ENV:', process.env.NODE_ENV);
 
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true);
+    if (!origin) return callback(null, true); // Allow requests with no origin (like mobile apps or curl requests)
     if (allowedOrigins.indexOf(origin) !== -1) {
       return callback(null, true);
     }
+    console.error(`[CORS ERROR] Origin not allowed: ${origin}`);
     return callback(new Error(`CORS policy: Origin not allowed - ${origin}`));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  exposedHeaders: ['Authorization']
+  exposedHeaders: ['Authorization'],
+  maxAge: 86400 // 24 hours
 }));
 
 // Set COOP/COEP headers to allow popup-based login windows to communicate
@@ -375,33 +379,45 @@ app.post('/api/auth/google', async (req, res) => {
   try {
     const { token, name, email, photo } = req.body;
 
+    console.log('[GOOGLE AUTH] Received auth request for:', email || 'unknown');
+
     let userEmail = email;
     let userName = name;
     let userPhoto = photo;
 
     // If a Firebase ID token is provided, verify it and extract user info
     if (token) {
-      const decoded = await admin.auth().verifyIdToken(token);
-      userEmail = decoded.email;
+      console.log('[GOOGLE AUTH] Verifying Firebase ID token...');
       try {
-        const userRecord = await admin.auth().getUser(decoded.uid);
-        userName = userRecord.displayName || userName;
-        userPhoto = userRecord.photoURL || userPhoto;
-      } catch (e) {
-        // continue even if fetching user record fails
-        console.warn('Unable to fetch Firebase user record', e.message);
+        const decoded = await admin.auth().verifyIdToken(token);
+        userEmail = decoded.email;
+        console.log('[GOOGLE AUTH] Firebase token verified for:', userEmail);
+        
+        try {
+          const userRecord = await admin.auth().getUser(decoded.uid);
+          userName = userRecord.displayName || userName;
+          userPhoto = userRecord.photoURL || userPhoto;
+          console.log('[GOOGLE AUTH] Firebase user record fetched:', { userName, hasPhoto: Boolean(userPhoto) });
+        } catch (e) {
+          console.warn('[GOOGLE AUTH] Unable to fetch Firebase user record:', e.message);
+        }
+      } catch (tokenErr) {
+        console.error('[GOOGLE AUTH] Firebase token verification failed:', tokenErr.message);
+        return res.status(401).json({ error: 'Invalid Firebase token' });
       }
     }
 
     if (!userEmail) {
+      console.error('[GOOGLE AUTH] Email is required but not provided');
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    console.log('Google auth request for email:', userEmail);
+    console.log('[GOOGLE AUTH] Processing user:', { email: userEmail, name: userName });
 
     // Find or create user
     let user = await User.findOne({ email: userEmail });
     if (!user) {
+      console.log('[GOOGLE AUTH] Creating new user:', userEmail);
       user = new User({
         name: userName || 'Google User',
         email: userEmail,
@@ -410,18 +426,69 @@ app.post('/api/auth/google', async (req, res) => {
         role: 'user'
       });
       await user.save();
+      console.log('[GOOGLE AUTH] User created successfully:', user._id);
+    } else {
+      console.log('[GOOGLE AUTH] Existing user found:', user._id);
     }
 
     // Issue JWT (used by the app for API auth)
-    const jwtToken = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'secretkey', { expiresIn: '7d' });
+    const jwtToken = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET || 'secretkey',
+      { expiresIn: '7d' }
+    );
 
-    return res.json({ token: jwtToken, user: { id: user._id, name: user.name, email: user.email, role: user.role, photo: user.photo } });
+    console.log('[GOOGLE AUTH] JWT token issued for user:', user._id);
+
+    const responseData = {
+      token: jwtToken,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photo: user.photo
+      }
+    };
+
+    console.log('[GOOGLE AUTH] Sending response:', { userId: user._id, email: user.email, role: user.role });
+
+    return res.json(responseData);
   } catch (err) {
-    console.error('Google auth error:', err);
-    return res.status(500).json({ error: 'Google Authentication Failed' });
-
+    console.error('[GOOGLE AUTH] Error:', err.message, err.stack);
+    return res.status(500).json({ error: 'Google Authentication Failed: ' + err.message });
   }
+});
 
+// ================= AUTH VERIFICATION =================
+
+// Verify current session and get authenticated user
+app.get('/api/auth/me', authMiddleware, async (req, res) => {
+  try {
+    console.log('[AUTH ME] Verifying user:', req.user.id);
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      console.log('[AUTH ME] User not found:', req.user.id);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log('[AUTH ME] User verified:', { id: user._id, email: user.email, role: user.role });
+
+    return res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        photo: user.photo
+      }
+    });
+  } catch (err) {
+    console.error('[AUTH ME] Error:', err.message);
+    return res.status(500).json({ error: 'Server Error' });
+  }
 });
 
 

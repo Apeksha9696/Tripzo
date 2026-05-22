@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
-import { auth } from '../firebase'; // Adjust path if necessary
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { auth } from '../firebase';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -11,36 +11,106 @@ export default function GoogleLogin() {
   const [error, setError] = useState(null);
   const { login } = useAuth();
 
+  // Handle redirect result on component mount (for redirect-based OAuth in production)
+  React.useEffect(() => {
+    if (import.meta.env.PROD) {
+      getRedirectResult(auth)
+        .then(async (result) => {
+          if (result) {
+            console.log('[GoogleLogin] Redirect result received:', result.user.email);
+            await exchangeFirebaseTokenForJWT(result);
+          }
+        })
+        .catch((err) => {
+          console.error('[GoogleLogin] Redirect error:', err);
+          setError(err.message || 'Failed to handle redirect');
+        });
+    }
+  }, []);
+
+  const exchangeFirebaseTokenForJWT = async (result) => {
+    try {
+      const user = result.user;
+      console.log('[GoogleLogin] User authenticated with Firebase:', {
+        email: user.email,
+        name: user.displayName,
+        photoURL: user.photoURL
+      });
+
+      // Get Firebase ID token
+      const token = await user.getIdToken();
+      console.log('[GoogleLogin] Firebase ID token obtained');
+
+      // Send to backend
+      const API_URL = import.meta.env.VITE_API_URL;
+      console.log('[GoogleLogin] Sending token to backend:', API_URL);
+
+      const response = await axios.post(`${API_URL}/api/auth/google`, { token }, {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('[GoogleLogin] Backend response received:', {
+        userId: response.data.user.id,
+        email: response.data.user.email,
+        role: response.data.user.role
+      });
+
+      // Store token and user data
+      login(response.data.token, response.data.user);
+
+      console.log('[GoogleLogin] Session persisted, redirecting to dashboard');
+
+      // Redirect to dashboard
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      console.error('[GoogleLogin] Error exchanging token:', err.message);
+      if (err.response?.data?.error) {
+        setError(`Authentication failed: ${err.response.data.error}`);
+      } else {
+        setError(err.message || 'Failed to authenticate with backend');
+      }
+      setIsLoading(false);
+    }
+  };
+
   const handleGoogleLogin = async () => {
     setIsLoading(true);
     setError(null);
     
     try {
       const provider = new GoogleAuthProvider();
-      // Use redirect flow in production to avoid COOP/COEP popup issues
+      
+      console.log('[GoogleLogin] Starting authentication...');
+      console.log('[GoogleLogin] Environment:', import.meta.env.PROD ? 'PRODUCTION' : 'DEVELOPMENT');
+      console.log('[GoogleLogin] API URL:', import.meta.env.VITE_API_URL);
+
+      // Use redirect flow in production, popup in development
       if (import.meta.env.PROD) {
+        console.log('[GoogleLogin] Using redirect-based auth for production');
         await signInWithRedirect(auth, provider);
-        return;
+        return; // Redirect will reload the page
       }
 
+      // Development: use popup
+      console.log('[GoogleLogin] Using popup-based auth for development');
       const result = await signInWithPopup(auth, provider);
-      // Get user details
-      const user = result.user;
-      console.log('User logged in successfully:', {
-        name: user.displayName,
-        email: user.email,
-        photoURL: user.photoURL
-      });
-
-      // Bonus: Send Firebase ID token to backend API
-      const token = await user.getIdToken();
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token });
-      login(res.data.token, res.data.user);
-      navigate('/dashboard');
+      await exchangeFirebaseTokenForJWT(result);
       
     } catch (err) {
-      console.error('Error during Google login:', err);
-      setError(err.message || 'Failed to login with Google.');
+      console.error('[GoogleLogin] Error during Google login:', err.message, err.code);
+      
+      if (err.code === 'auth/popup-blocked') {
+        setError('Popup was blocked. Please allow popups for this site and try again.');
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setError('Login popup was closed. Please try again.');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        setError('Login was cancelled.');
+      } else {
+        setError(err.message || 'Failed to login with Google');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -52,8 +122,11 @@ export default function GoogleLogin() {
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Welcome Back</h2>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
-            {error}
+          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-200">
+            <p className="font-semibold mb-1">❌ {error}</p>
+            <p className="text-xs text-red-500">
+              If the issue persists, check the browser console for more details.
+            </p>
           </div>
         )}
 
@@ -78,6 +151,19 @@ export default function GoogleLogin() {
             />
             <path
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              fill="#EA4335"
+            />
+          </svg>
+          {isLoading ? 'Connecting...' : 'Continue with Google'}
+        </button>
+
+        <p className="text-xs text-gray-500 mt-4">
+          By clicking above, you agree to our Terms of Service and Privacy Policy
+        </p>
+      </div>
+    </div>
+  );
+}
               fill="#EA4335"
             />
           </svg>
