@@ -164,12 +164,3 @@ export default function GoogleLogin() {
     </div>
   );
 }
-              fill="#EA4335"
-            />
-          </svg>
-          {isLoading ? 'Connecting...' : 'Continue with Google'}
-        </button>
-      </div>
-    </div>
-  );
-}

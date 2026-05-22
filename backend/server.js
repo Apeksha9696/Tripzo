@@ -68,8 +68,19 @@ const allowedOrigins = [
 
 console.log('[STARTUP] CORS allowed origins:', allowedOrigins);
 console.log('[STARTUP] JWT_SECRET present:', Boolean(process.env.JWT_SECRET));
+console.log('[STARTUP] JWT_SECRET length:', process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0);
 console.log('[STARTUP] FRONTEND_URL:', FRONTEND_URL);
 console.log('[STARTUP] NODE_ENV:', process.env.NODE_ENV);
+console.log('[STARTUP] MONGO_URI present:', Boolean(process.env.MONGO_URI));
+console.log('[STARTUP] FIREBASE_PROJECT_ID:', process.env.FIREBASE_PROJECT_ID);
+console.log('[STARTUP] FIREBASE_CLIENT_EMAIL:', process.env.FIREBASE_CLIENT_EMAIL);
+console.log('[STARTUP] FIREBASE_PRIVATE_KEY present:', Boolean(process.env.FIREBASE_PRIVATE_KEY));
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('⚠️ [STARTUP] WARNING: JWT_SECRET is missing or too short (must be 32+ chars)!');
+}
+if (!process.env.MONGO_URI) {
+  console.error('⚠️ [STARTUP] WARNING: MONGO_URI is not set!');
+}
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -201,32 +212,39 @@ const ensureDefaultAccounts = async () => {
 
 // Auth Middleware
 const authMiddleware = (req, res, next) => {
-
   const token = req.header('Authorization');
 
   if (!token) {
+    console.log('[AUTH MIDDLEWARE] No token provided');
     return res.status(401).json({
       error: 'No token provided'
     });
   }
 
-  try {
+  if (!process.env.JWT_SECRET) {
+    console.error('[AUTH MIDDLEWARE] CRITICAL: JWT_SECRET not set!');
+    return res.status(500).json({
+      error: 'Server configuration error'
+    });
+  }
 
+  try {
+    console.log('[AUTH MIDDLEWARE] Verifying JWT token...');
     const decoded = jwt.verify(
       token.replace('Bearer ', ''),
       process.env.JWT_SECRET
     );
+    console.log('[AUTH MIDDLEWARE] JWT verified for user:', decoded.id);
 
     req.user = decoded;
 
     next();
 
   } catch (err) {
-
+    console.error('[AUTH MIDDLEWARE] JWT verification failed:', err.message);
     return res.status(401).json({
-      error: 'Invalid Token'
+      error: 'Invalid Token: ' + err.message
     });
-
   }
 };
 
@@ -264,6 +282,11 @@ app.post('/api/auth/register', async (req, res) => {
 
     await user.save();
 
+    if (!process.env.JWT_SECRET) {
+      console.error('[REGISTER] CRITICAL: JWT_SECRET not set!');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     const token = jwt.sign(
       {
         id: user._id,
@@ -274,6 +297,8 @@ app.post('/api/auth/register', async (req, res) => {
         expiresIn: '7d'
       }
     );
+
+    console.log('[REGISTER] User registered successfully:', { id: user._id, email: user.email });
 
     res.status(201).json({
       token,
@@ -432,9 +457,13 @@ app.post('/api/auth/google', async (req, res) => {
     }
 
     // Issue JWT (used by the app for API auth)
+    if (!process.env.JWT_SECRET) {
+      console.error('[GOOGLE AUTH] CRITICAL: JWT_SECRET not set!');
+      return res.status(500).json({ error: 'Server configuration error: JWT_SECRET not set' });
+    }
     const jwtToken = jwt.sign(
       { id: user._id, role: user.role },
-      process.env.JWT_SECRET || 'secretkey',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -465,28 +494,49 @@ app.post('/api/auth/google', async (req, res) => {
 // Verify current session and get authenticated user
 app.get('/api/auth/me', authMiddleware, async (req, res) => {
   try {
-    console.log('[AUTH ME] Verifying user:', req.user.id);
+    const role = req.user.role || 'user';
+    console.log('[AUTH ME] Verifying user:', req.user.id, 'role:', role);
 
-    const user = await User.findById(req.user.id);
+    let user = null;
+    if (role === 'admin') {
+      user = await Admin.findById(req.user.id);
+    } else if (role === 'driver') {
+      user = await Driver.findById(req.user.id);
+    } else {
+      user = await User.findById(req.user.id);
+    }
+
+    // Fallback logic to check other collections in case of role mismatch or old tokens
+    if (!user) {
+      console.log('[AUTH ME] User not found by role in JWT, searching other collections...');
+      user = await User.findById(req.user.id);
+      if (!user) {
+        user = await Driver.findById(req.user.id);
+      }
+      if (!user) {
+        user = await Admin.findById(req.user.id);
+      }
+    }
 
     if (!user) {
-      console.log('[AUTH ME] User not found:', req.user.id);
+      console.log('[AUTH ME] User not found in any collection:', req.user.id);
       return res.status(404).json({ error: 'User not found' });
     }
 
-    console.log('[AUTH ME] User verified:', { id: user._id, email: user.email, role: user.role });
+    const finalRole = user.role || role;
+    console.log('[AUTH ME] User verified successfully:', { id: user._id, email: user.email, role: finalRole });
 
     return res.json({
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role,
-        photo: user.photo
+        role: finalRole,
+        photo: user.photo || null
       }
     });
   } catch (err) {
-    console.error('[AUTH ME] Error:', err.message);
+    console.error('[AUTH ME] Error during token verification:', err.message);
     return res.status(500).json({ error: 'Server Error' });
   }
 });
