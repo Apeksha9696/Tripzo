@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: tripzo-backend
+    env: node
+    plan: free
+    repo: https://github.com/<your-repo>/Tripzo
+    branch: main
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    envVars:
+      - key: MONGO_URI
+        value: "<Your Mongo Connection String>"
+      - key: JWT_SECRET
+        value: "<Your JWT Secret>"
+      - key: FIREBASE_PROJECT_ID
+        value: "<Your Firebase Project ID>"
+      - key: FIREBASE_CLIENT_EMAIL
+        value: "<Your Firebase Client Email>"
+      - key: FIREBASE_PRIVATE_KEY
+        value: "<Your Firebase Private Key with newlines escaped>"
+      - key: NODE_ENV
+        value: "production"
+    region: oregon

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 
 // ================= LOGIN =================
@@ -18,22 +19,14 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // check password
-    if (user.password !== password) {
-      return res.status(400).json({
-        error: 'Invalid password',
-      });
+    // check password (hashed)
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Invalid password' });
     }
 
     // create token
-    const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role,
-      },
-      'secretkey',
-      { expiresIn: '1d' }
-    );
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'secretkey', { expiresIn: '1d' });
 
     res.json({
       token,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { auth } from '../firebase'; // Adjust path if necessary
 import axios from 'axios';
 
@@ -15,8 +15,13 @@ export default function GoogleLogin() {
     
     try {
       const provider = new GoogleAuthProvider();
+      // Use redirect flow in production to avoid COOP/COEP popup issues
+      if (import.meta.env.PROD) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+
       const result = await signInWithPopup(auth, provider);
-      
       // Get user details
       const user = result.user;
       console.log('User logged in successfully:', {

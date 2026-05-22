@@ -1,4 +1,7 @@
 import React from 'react';
+import { getRedirectResult } from 'firebase/auth';
+import { auth } from './firebase';
+import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { SocketProvider } from './contexts/SocketContext';
@@ -140,6 +143,30 @@ const LayoutWrapper = () => {
 };
 
 function App() {
+  React.useEffect(() => {
+    // Handle Firebase redirect result (production redirect-based Google login)
+    const handleRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result && result.user) {
+          const idToken = await result.user.getIdToken();
+          const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token: idToken });
+          localStorage.setItem('token', res.data.token);
+          localStorage.setItem('user', JSON.stringify(res.data.user));
+          axios.defaults.headers.common.Authorization = `Bearer ${res.data.token}`;
+          window.dispatchEvent(new Event('authChange'));
+          if (res.data.user.role === 'admin') window.location.href = '/admin-dashboard';
+          else if (res.data.user.role === 'driver') window.location.href = '/driver-dashboard';
+          else window.location.reload();
+        }
+      } catch (err) {
+        // ignore when there is no redirect result
+        console.warn('No redirect auth result or failed to process it', err?.message || err);
+      }
+    };
+
+    handleRedirect();
+  }, []);
   return (
     <SocketProvider>
       <Router>

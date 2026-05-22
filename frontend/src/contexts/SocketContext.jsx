@@ -22,7 +22,8 @@ export const SocketProvider = ({ children }) => {
     const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || `${import.meta.env.VITE_API_URL}`;
 
     const newSocket = io(SOCKET_URL, {
-      transports: ['websocket'],
+      path: '/socket.io',
+      transports: ['websocket', 'polling'], // allow polling fallback
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,

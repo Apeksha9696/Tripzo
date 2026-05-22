@@ -3,7 +3,7 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaBus } from 'react-icons/fa';
 import { FiX, FiMail, FiLock, FiUser, FiAlertCircle } from 'react-icons/fi';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect } from 'firebase/auth';
 import { auth } from '../firebase';
 
 export default function AuthModal({ type: initialType, onClose }) {
@@ -39,6 +39,12 @@ export default function AuthModal({ type: initialType, onClose }) {
   const handleGoogle = async () => {
     setGLoad(true); setError('');
     try {
+      // Use redirect flow in production to avoid COOP/COEP popup issues
+      if (import.meta.env.PROD) {
+        await signInWithRedirect(auth, new GoogleAuthProvider());
+        return; // redirect will occur; result handled after app reload
+      }
+
       const res2 = await signInWithPopup(auth, new GoogleAuthProvider());
       const token = await res2.user.getIdToken();
       const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/google`, { token });

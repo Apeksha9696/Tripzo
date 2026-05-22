@@ -51,19 +51,37 @@ const isAllowedEmail = (email) => {
 
 const app = express();
 
-// CORS
+// Trust proxy (Render/Vercel sit behind proxies)
+app.set('trust proxy', 1);
+
+// CORS - allow only configured origins and support credentials
 const allowedOrigins = [
-  "http://localhost:5173",
-  "https://tripzo-app.vercel.app",
-  "https://www.tripzo-app.vercel.app"
+  'http://localhost:5173',
+  'https://tripzo-app.vercel.app',
+  'https://www.tripzo-app.vercel.app'
 ];
 
 app.use(cors({
-  origin: allowedOrigins,
+  origin: function(origin, callback) {
+    // allow requests with no origin like mobile apps or curl
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS policy: Origin not allowed'));
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
+
+// Set COOP/COEP headers to allow popup-based login windows to communicate
+// NOTE: we prefer redirect-based OAuth in production; this relaxes popup restrictions
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  next();
+});
 
 app.use(express.json());
 
@@ -72,8 +90,13 @@ const server = http.createServer(app);
 
 // Socket.IO
 const io = socketIo(server, {
+  path: '/socket.io',
   cors: {
-    origin: allowedOrigins,
+    origin: function(origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+      return callback(new Error('Socket CORS policy: Origin not allowed'));
+    },
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -335,6 +358,62 @@ app.post('/api/auth/login', async (req, res) => {
   }
 
 });
+// ================= GOOGLE AUTH =================
+
+// Google authentication endpoint - accepts either Firebase ID token or plain profile
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { token, name, email, photo } = req.body;
+
+    let userEmail = email;
+    let userName = name;
+    let userPhoto = photo;
+
+    // If a Firebase ID token is provided, verify it and extract user info
+    if (token) {
+      const decoded = await admin.auth().verifyIdToken(token);
+      userEmail = decoded.email;
+      try {
+        const userRecord = await admin.auth().getUser(decoded.uid);
+        userName = userRecord.displayName || userName;
+        userPhoto = userRecord.photoURL || userPhoto;
+      } catch (e) {
+        // continue even if fetching user record fails
+        console.warn('Unable to fetch Firebase user record', e.message);
+      }
+    }
+
+    if (!userEmail) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Find or create user
+    let user = await User.findOne({ email: userEmail });
+    if (!user) {
+      user = new User({
+        name: userName || 'Google User',
+        email: userEmail,
+        photo: userPhoto,
+        password: 'google-auth-user',
+        role: 'user'
+      });
+      await user.save();
+    }
+
+    // Issue JWT (used by the app for API auth)
+    const jwtToken = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'secretkey', { expiresIn: '7d' });
+
+    return res.json({ token: jwtToken, user: { id: user._id, name: user.name, email: user.email, role: user.role, photo: user.photo } });
+  } catch (err) {
+    console.error('Google auth error:', err);
+    return res.status(500).json({ error: 'Google Authentication Failed' });
+
+  }
+
+});
+
+
+
 
 // Forgot Password
 app.post('/api/auth/forgot-password', async (req, res) => {
