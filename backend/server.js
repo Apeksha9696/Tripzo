@@ -622,6 +622,23 @@ app.get('/api/buses/search', async (req, res) => {
   }
 
 });
+app.get('/api/buses', async (req, res) => {
+  try {
+
+    const buses = await Bus.find();
+
+    res.json(buses);
+
+  } catch (err) {
+
+    console.error(err);
+
+    res.status(500).json({
+      error: 'Server Error'
+    });
+
+  }
+});
 
 // My Bookings
 app.get('/api/bookings/my-bookings',
