@@ -1,101 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
+const authController = require('../controllers/authController');
+const { auth, authorize } = require('../middleware/authMiddleware');
 
+// Public endpoints
+router.post('/register', authController.register);
+router.post('/login', authController.login);
+router.post('/google', authController.googleLogin);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password/:token', authController.resetPassword);
+router.post('/logout', authController.logout);
 
-// ================= LOGIN =================
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+// Protected endpoints
+router.get('/me', auth, authController.getMe);
 
-    // find user
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(400).json({
-        error: 'User not found',
-      });
-    }
-
-    // check password (hashed)
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid password' });
-    }
-
-    // create token
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'secretkey', { expiresIn: '1d' });
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    });
-
-  } catch (err) {
-    console.log(err);
-
-    res.status(500).json({
-      error: 'Server error',
-    });
-  }
-});
-
-
-// ================= GOOGLE LOGIN =================
-router.post('/google', async (req, res) => {
-  try {
-    const { name, email, photo } = req.body;
-
-    // check existing user
-    let user = await User.findOne({ email });
-
-    // create user if not exists
-    if (!user) {
-      user = await User.create({
-        name,
-        email,
-        photo,
-        password: 'google-auth',
-        role: 'user',
-      });
-    }
-
-    // create token
-    const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role,
-      },
-      'secretkey',
-      { expiresIn: '1d' }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        photo: user.photo,
-      },
-    });
-
-  } catch (err) {
-    console.log(err);
-
-    res.status(500).json({
-      error: 'Google authentication failed',
-    });
-  }
-});
-
+// Admin-only driver registration
+router.post('/register-driver', auth, authorize('admin'), authController.registerDriver);
 
 module.exports = router;
