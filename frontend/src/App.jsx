@@ -136,8 +136,8 @@ const AnimatedRoutes = () => {
 
         {/* User routes */}
         <Route path="/" element={<Home />} />
-        <Route path="/search" element={<UserRoute><SearchResults /></UserRoute>} />
-        <Route path="/bus/:id" element={<UserRoute><BusDetails /></UserRoute>} />
+        <Route path="/search" element={<SearchResults />} />
+        <Route path="/bus/:id" element={<BusDetails />} />
         <Route path="/checkout/:id" element={<UserRoute><Checkout /></UserRoute>} />
         <Route path="/my-bookings" element={<UserRoute><MyBookings /></UserRoute>} />
 

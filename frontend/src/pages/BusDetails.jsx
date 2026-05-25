@@ -24,13 +24,15 @@ export default function BusDetails() {
   }, [id]);
 
   const handleSeatClick = (seatObj) => {
-    if (bus.bookedSeats.includes(seatObj.id)) return;
+    const bookedSeats = bus?.bookedSeats || [];
+    if (bookedSeats.includes(seatObj.id)) return;
     setSelectedSeats(prev => prev.includes(seatObj.id) ? prev.filter(s => s !== seatObj.id) : [...prev, seatObj.id]);
   };
 
   const handleProceed = () => {
     const token = localStorage.getItem('token');
     if (!token) { window.dispatchEvent(new CustomEvent('openAuthModal', { detail: 'login' })); return; }
+    sessionStorage.setItem(`selected_seats_${id}`, JSON.stringify(selectedSeats));
     navigate(`/checkout/${id}`, { state: { bus, selectedSeats } });
   };
 
@@ -53,6 +55,12 @@ export default function BusDetails() {
       </div>
     </div>
   );
+
+  const bookedSeats = bus.bookedSeats || [];
+  const stoppages = bus.stoppages || [
+    ...(bus.pickupPoints || []).map(p => ({ stopName: p.location || p.point || 'Pickup Point', arrivalTime: p.time || bus.departureTime })),
+    ...(bus.dropPoints || []).map(d => ({ stopName: d.location || d.point || 'Drop Point', arrivalTime: d.time || bus.arrivalTime }))
+  ];
 
   const seatLayout = Array.from({ length: 60 }, (_, i) => {
     const rowNumber = Math.floor(i / 3) + 1;
@@ -136,8 +144,8 @@ export default function BusDetails() {
                     Points
                   </h3>
                   <div className="space-y-2 text-sm" style={{ color: '#4a5568' }}>
-                    <p className="flex justify-between"><span style={{ color: '#a0aec0' }}>Pickup</span><span className="font-semibold truncate ml-2 max-w-[120px]">{bus.pickupPoints?.[0]?.point || bus.from}</span></p>
-                    <p className="flex justify-between"><span style={{ color: '#a0aec0' }}>Drop</span><span className="font-semibold truncate ml-2 max-w-[120px]">{bus.dropPoints?.[0]?.point || bus.to}</span></p>
+                    <p className="flex justify-between"><span style={{ color: '#a0aec0' }}>Pickup</span><span className="font-semibold truncate ml-2 max-w-[120px]">{bus.pickupPoints?.[0]?.location || bus.pickupPoints?.[0]?.point || bus.from}</span></p>
+                    <p className="flex justify-between"><span style={{ color: '#a0aec0' }}>Drop</span><span className="font-semibold truncate ml-2 max-w-[120px]">{bus.dropPoints?.[0]?.location || bus.dropPoints?.[0]?.point || bus.to}</span></p>
                     <p className="flex justify-between pt-2 border-t" style={{ borderColor: '#f1f5f9' }}>
                       <span style={{ color: '#a0aec0' }}>Offer</span><span className="font-semibold" style={{ color: '#2dd4bf' }}>{bus.offer || 'Free water bottle'}</span>
                     </p>
@@ -173,10 +181,10 @@ export default function BusDetails() {
             <div className="p-4">
               <div className="space-y-4 pl-4 relative">
                 <div className="absolute top-1.5 bottom-1.5 left-[21px] w-0.5" style={{ background: 'rgba(45,212,191,0.2)' }} />
-                {bus.stoppages.map((stop, idx) => (
+                {stoppages.map((stop, idx) => (
                   <div key={idx} className="relative pl-8">
                     <div className="absolute w-3 h-3 rounded-full -left-1.5 top-1 border-2 border-white shadow-sm z-10"
-                      style={{ background: idx === 0 || idx === bus.stoppages.length - 1 ? '#2dd4bf' : 'rgba(45,212,191,0.3)' }} />
+                      style={{ background: idx === 0 || idx === stoppages.length - 1 ? '#2dd4bf' : 'rgba(45,212,191,0.3)' }} />
                     <h4 className="font-black text-sm" style={{ color: '#1a202c' }}>{stop.stopName}</h4>
                     <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#a0aec0' }}>Arrival: {stop.arrivalTime}</span>
                   </div>
@@ -213,7 +221,7 @@ export default function BusDetails() {
                   <h4 className="text-center font-black mb-4 text-[9px] tracking-[0.2em] uppercase" style={{ color: '#a0aec0' }}>{label}</h4>
                   <div className="grid grid-cols-[auto_auto_1rem_auto] gap-y-2 gap-x-1.5 w-max mx-auto">
                     {seats.map((seat, index) => {
-                      const isBooked = bus.bookedSeats.includes(seat.id);
+                      const isBooked = bookedSeats.includes(seat.id);
                       const isSelected = selectedSeats.includes(seat.id);
                       const isAisle = index % 3 === 1;
                       return (

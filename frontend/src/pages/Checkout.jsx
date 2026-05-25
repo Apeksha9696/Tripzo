@@ -1,51 +1,180 @@
-import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaRupeeSign, FaRegCreditCard, FaRegCalendarAlt, FaRegClock, FaCheckCircle, FaArrowLeft, FaBus, FaTicketAlt } from 'react-icons/fa';
+import { FaRupeeSign, FaRegCreditCard, FaRegCalendarAlt, FaRegClock, FaCheckCircle, FaArrowLeft, FaBus, FaTicketAlt, FaUser } from 'react-icons/fa';
 import { FiShield } from 'react-icons/fi';
 
 export default function Checkout() {
+  const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const state = location.state;
 
-  if (!state || !state.bus || !state.selectedSeats) {
+  // Core state containing bus and selected seats
+  const [bus, setBus] = useState(location.state?.bus || null);
+  const [selectedSeats, setSelectedSeats] = useState(location.state?.selectedSeats || []);
+  const [loadingBus, setLoadingBus] = useState(!location.state?.bus);
+
+  // Form and flow states
+  const [step, setStep] = useState('review'); // 'review' | 'passengers' | 'payment'
+  const [passengers, setPassengers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [success, setSuccess] = useState(false);
+  const [validationError, setValidationError] = useState('');
+
+  // 1. Refresh Recovery Hook
+  useEffect(() => {
+    const restoreState = async () => {
+      // If we don't have location state, attempt recovery
+      if (!bus || selectedSeats.length === 0) {
+        try {
+          console.log('[Checkout] State missing. Attempting state recovery for bus:', id);
+          const storedSeatsStr = sessionStorage.getItem(`selected_seats_${id}`);
+          const seats = storedSeatsStr ? JSON.parse(storedSeatsStr) : [];
+          
+          if (seats.length === 0) {
+            console.warn('[Checkout] No seats found in sessionStorage. Recovery aborted.');
+            setLoadingBus(false);
+            return;
+          }
+          
+          setSelectedSeats(seats);
+          console.log('[Checkout] Recovered selected seats:', seats);
+
+          // Fetch bus details from the public search/:id backend endpoint
+          const res = await axios.get(`${import.meta.env.VITE_API_URL || ''}/api/buses/search/${id}`);
+          if (res.data) {
+            setBus(res.data);
+            console.log('[Checkout] Recovered bus details successfully:', res.data.operatorName);
+          }
+        } catch (err) {
+          console.error('[Checkout] Failed to recover bus/seats state:', err.message);
+        } finally {
+          setLoadingBus(false);
+        }
+      } else {
+        setLoadingBus(false);
+      }
+    };
+    restoreState();
+  }, [id, bus, selectedSeats.length]);
+
+  // 2. Initialize passenger entries once seats are loaded
+  useEffect(() => {
+    if (selectedSeats.length > 0 && passengers.length === 0) {
+      setPassengers(
+        selectedSeats.map((seat) => ({
+          seat,
+          name: '',
+          age: '',
+          gender: 'Male'
+        }))
+      );
+    }
+  }, [selectedSeats, passengers.length]);
+
+  // Handle passenger input changes
+  const handlePassengerChange = (index, field, value) => {
+    setPassengers(prev => {
+      const copy = [...prev];
+      copy[index] = { ...copy[index], [field]: value };
+      return copy;
+    });
+  };
+
+  // Validate passenger inputs before going to payment
+  const handleProceedToPayment = () => {
+    setValidationError('');
+    
+    // Check if any passenger fields are empty or invalid
+    for (let i = 0; i < passengers.length; i++) {
+      const p = passengers[i];
+      if (!p.name.trim()) {
+        setValidationError(`Please enter the name for passenger on seat ${p.seat}`);
+        return;
+      }
+      if (!p.age || isNaN(p.age) || Number(p.age) <= 0 || Number(p.age) > 120) {
+        setValidationError(`Please enter a valid age (1-120) for passenger on seat ${p.seat}`);
+        return;
+      }
+    }
+    
+    // Check authentication before advancing
+    const token = localStorage.getItem('token');
+    if (!token) {
+      window.dispatchEvent(new CustomEvent('openAuthModal', { detail: 'login' }));
+      return;
+    }
+
+    setStep('payment');
+  };
+
+  // Submit payment & book tickets in DB
+  const handlePayment = async () => {
+    setLoading(true);
+    setValidationError('');
+    
+    setTimeout(async () => {
+      const token = localStorage.getItem('token');
+      try {
+        // Post booking with passenger details (backend ignores extra parameters, but they are tracked locally on state)
+        await axios.post(
+          `${import.meta.env.VITE_API_URL || ''}/api/bookings`,
+          { 
+            busId: bus._id, 
+            seats: selectedSeats,
+            passengers // include passenger details for future logs or audits
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        // Clean up session storage on success
+        sessionStorage.removeItem(`selected_seats_${id}`);
+        setSuccess(true);
+      } catch (err) {
+        alert(err.response?.data?.error || 'Booking Reservation Failed. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    }, 1500);
+  };
+
+  // Loading spinner during state recovery
+  if (loadingBus) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#ffffff' }}>
-        <div className="white-card p-8 text-center max-w-sm w-full">
-          <h2 className="text-xl font-black mb-2" style={{ color: '#1a202c' }}>Invalid Request</h2>
-          <p className="text-sm mb-4" style={{ color: '#718096' }}>Please go back and select seats first.</p>
-          <button onClick={() => navigate('/')} className="px-5 py-2.5 rounded-xl text-white text-sm font-bold btn-primary">Back to Home</button>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 rounded-full animate-spin mx-auto mb-3"
+            style={{ borderColor: '#e2e8f0', borderTopColor: '#2dd4bf' }} />
+          <p className="font-semibold text-sm animate-pulse text-teal-500">Recovering your booking session...</p>
         </div>
       </div>
     );
   }
 
-  const { bus, selectedSeats } = state;
-  const [step, setStep] = useState('review');
-  const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('card');
-  const [success, setSuccess] = useState(false);
+  // Invalid state handler (e.g. state loss without session storage fallback)
+  if (!bus || selectedSeats.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white p-4">
+        <div className="white-card p-8 text-center max-w-sm w-full">
+          <h2 className="text-xl font-black mb-2" style={{ color: '#1a202c' }}>Invalid Booking Request</h2>
+          <p className="text-sm mb-4" style={{ color: '#718096' }}>Please return to search, select a bus, and choose your seats first.</p>
+          <button onClick={() => navigate('/')} className="w-full py-3 rounded-xl text-white text-sm font-bold btn-primary">Back to Home</button>
+        </div>
+      </div>
+    );
+  }
+
   const totalAmount = selectedSeats.length * bus.price;
+  const inputCls = "w-full px-4 py-3 rounded-xl font-medium text-sm outline-none transition-all input-field border border-slate-200 focus:border-teal-500";
 
-  const handlePayment = async () => {
-    setLoading(true);
-    setTimeout(async () => {
-      const token = localStorage.getItem('token');
-      try {
-        await axios.post(`${import.meta.env.VITE_API_URL}/api/bookings`, { busId: bus._id, seats: selectedSeats }, { headers: { Authorization: `Bearer ${token}` } });
-        setSuccess(true);
-      } catch (err) { alert(err.response?.data?.error || 'Booking Failed'); }
-      finally { setLoading(false); }
-    }, 1500);
-  };
-
+  // Ticket Confirmation view
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#ffffff' }}>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-white">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', damping: 20 }}
-          className="white-card max-w-sm w-full text-center p-8">
+          className="white-card max-w-md w-full text-center p-8 border border-slate-100 shadow-xl">
           <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', damping: 12, delay: 0.2 }}
             className="mb-5 flex justify-center">
             <div className="w-16 h-16 rounded-full flex items-center justify-center"
@@ -53,21 +182,41 @@ export default function Checkout() {
               <FaCheckCircle className="w-8 h-8 text-white" />
             </div>
           </motion.div>
-          <h1 className="text-2xl font-black mb-2" style={{ color: '#1a202c' }}>Booking Confirmed!</h1>
-          <p className="mb-6 text-sm" style={{ color: '#718096' }}>Your ticket has been booked successfully. Have a great journey!</p>
-          <div className="rounded-xl p-4 mb-6 text-left" style={{ background: 'rgba(45,212,191,0.05)', border: '1px solid rgba(45,212,191,0.15)' }}>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-semibold" style={{ color: '#718096' }}>Booking ID</span>
-              <span className="font-black text-sm" style={{ color: '#1a202c' }}>TRK-{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
+          <h1 className="text-2xl font-black mb-1" style={{ color: '#1a202c' }}>Booking Confirmed!</h1>
+          <p className="mb-6 text-sm text-slate-500">Your ticket has been booked successfully. Have a great journey!</p>
+          
+          <div className="rounded-xl p-5 mb-6 text-left space-y-3.5" style={{ background: 'rgba(45,212,191,0.05)', border: '1px solid rgba(45,212,191,0.15)' }}>
+            <div className="flex justify-between items-center pb-2 border-b border-dashed border-teal-100">
+              <span className="text-xs font-semibold text-slate-500">Booking ID</span>
+              <span className="font-black text-sm text-slate-800">TRK-{Math.random().toString(36).substr(2, 9).toUpperCase()}</span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-xs font-semibold" style={{ color: '#718096' }}>Amount Paid</span>
-              <span className="font-black text-sm flex items-center" style={{ color: '#2dd4bf' }}><FaRupeeSign className="w-3 h-3 mr-0.5" />{totalAmount}</span>
+            <div className="space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Route & Bus</p>
+              <p className="font-black text-sm text-slate-800">{bus.operatorName}</p>
+              <p className="text-xs text-slate-500 font-semibold">{bus.from} &rarr; {bus.to} • {bus.departureTime}</p>
+            </div>
+            
+            <div className="space-y-1.5 pt-2 border-t border-dashed border-teal-100">
+              <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Passengers ({passengers.length})</p>
+              <div className="space-y-1">
+                {passengers.map((p, idx) => (
+                  <div key={idx} className="flex justify-between text-xs text-slate-700">
+                    <span className="font-bold">Seat {p.seat}: {p.name}</span>
+                    <span className="font-semibold text-slate-500">{p.age} yrs • {p.gender}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t border-teal-100">
+              <span className="text-xs font-semibold text-slate-500">Amount Paid</span>
+              <span className="font-black text-base flex items-center text-teal-600"><FaRupeeSign className="w-3.5 h-3.5 mr-0.5" />{totalAmount}</span>
             </div>
           </div>
+
           <motion.button whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
             onClick={() => navigate('/')}
-            className="w-full text-white px-8 py-3 rounded-xl font-black text-sm btn-primary">
+            className="w-full text-white px-8 py-3.5 rounded-xl font-black text-sm btn-primary shadow-lg shadow-teal-500/25">
             Go to Home
           </motion.button>
         </motion.div>
@@ -75,77 +224,96 @@ export default function Checkout() {
     );
   }
 
-  const inputCls = "w-full px-4 py-3 rounded-xl font-medium text-sm outline-none transition-all input-field";
-
   return (
-    <div className="min-h-screen pt-20 pb-8" style={{ background: '#ffffff' }}>
-      <div className="max-w-md mx-auto px-4 sm:px-6">
+    <div className="min-h-screen pt-24 pb-12 bg-slate-50 font-sans">
+      <div className="max-w-lg mx-auto px-4 sm:px-6">
 
+        {/* Dynamic Step Header */}
+        <div className="flex items-center mb-6 relative justify-center">
+          {step !== 'review' && (
+            <button 
+              onClick={() => setStep(step === 'payment' ? 'passengers' : 'review')}
+              className="absolute left-0 w-9 h-9 flex items-center justify-center rounded-xl transition-all border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 shadow-sm"
+            >
+              <FaArrowLeft className="w-3 h-3" />
+            </button>
+          )}
+          <h2 className="text-2xl font-black text-slate-800">
+            {step === 'review' && 'Review Booking'}
+            {step === 'passengers' && 'Passenger Details'}
+            {step === 'payment' && 'Payment'}
+          </h2>
+        </div>
+
+        {/* Global Validation Alert */}
+        {validationError && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 text-red-600 p-4 rounded-xl text-sm mb-5 border border-red-200 font-semibold"
+          >
+            {validationError}
+          </motion.div>
+        )}
+
+        {/* STEP 1: REVIEW BOOKING DETAILS */}
         {step === 'review' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <h2 className="text-2xl font-black text-center mb-5" style={{ color: '#1a202c' }}>Review Booking</h2>
-
-            <div className="white-card overflow-hidden mb-5">
-              {/* Ticket header */}
-              <div className="p-5 relative overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, #134e4a, #0f766e)' }}>
-                <div className="flex items-center gap-2 mb-4">
+          <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="white-card overflow-hidden mb-6 border border-slate-200 shadow-sm">
+              <div className="p-5 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #134e4a, #0f766e)' }}>
+                <div className="flex items-center gap-2 mb-3">
                   <FaTicketAlt className="w-4 h-4 text-white opacity-70" />
-                  <span className="text-xs font-bold text-white opacity-70 uppercase tracking-widest">E-Ticket</span>
+                  <span className="text-[10px] font-bold text-white opacity-70 uppercase tracking-widest">E-Ticket Summary</span>
                 </div>
-                <h1 className="text-xl font-black text-white mb-1">{bus.operatorName}</h1>
-                <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.7)' }}>{bus.busName} • {bus.category}</p>
+                <h1 className="text-xl font-black text-white mb-0.5">{bus.operatorName}</h1>
+                <p className="text-xs font-semibold text-teal-100">{bus.busName} • {bus.category || bus.busType}</p>
 
-                <div className="flex items-center justify-between mt-4 p-3 rounded-xl"
-                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)' }}>
+                <div className="flex items-center justify-between mt-5 p-3 rounded-xl"
+                  style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)' }}>
                   <div className="text-center">
                     <p className="text-xl font-black text-white">{bus.departureTime}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.7)' }}>{bus.from}</p>
+                    <p className="text-[10px] font-bold mt-0.5 text-teal-100 uppercase tracking-wider">{bus.from}</p>
                   </div>
                   <div className="flex-1 px-4 flex items-center justify-center relative">
-                    <div className="w-full border-t border-dashed opacity-30" />
-                    <div className="px-2 py-0.5 relative z-10 rounded-full text-[9px] font-bold flex items-center gap-1"
-                      style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>
-                      <FaRegClock className="w-2.5 h-2.5" /> {bus.duration}
+                    <div className="w-full border-t border-dashed border-white/20" />
+                    <div className="px-2.5 py-0.5 relative z-10 rounded-full text-[9px] font-bold flex items-center gap-1 text-white"
+                      style={{ background: 'rgba(255,255,255,0.15)' }}>
+                      <FaRegClock className="w-2.5 h-2.5" /> {bus.duration || '4h'}
                     </div>
                   </div>
                   <div className="text-center">
                     <p className="text-xl font-black text-white">{bus.arrivalTime}</p>
-                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.7)' }}>{bus.to}</p>
+                    <p className="text-[10px] font-bold mt-0.5 text-teal-100 uppercase tracking-wider">{bus.to}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Ticket body */}
               <div className="p-5">
-                <div className="grid grid-cols-2 gap-3 mb-4 p-4 rounded-xl"
-                  style={{ background: 'rgba(45,212,191,0.05)', border: '1px solid rgba(45,212,191,0.12)' }}>
+                <div className="grid grid-cols-2 gap-3 mb-5 p-4 rounded-xl bg-slate-50 border border-slate-100">
                   <div>
-                    <p className="text-[9px] font-black mb-1 flex items-center gap-1 uppercase tracking-widest" style={{ color: '#a0aec0' }}>
-                      <FaRegCalendarAlt className="w-2.5 h-2.5" /> Date
+                    <p className="text-[9px] font-black mb-1 flex items-center gap-1 text-slate-400 uppercase tracking-widest">
+                      <FaRegCalendarAlt className="w-2.5 h-2.5 text-teal-500" /> Date
                     </p>
-                    <p className="font-black text-sm" style={{ color: '#1a202c' }}>
+                    <p className="font-black text-sm text-slate-800">
                       {new Date(bus.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black mb-1 uppercase tracking-widest" style={{ color: '#a0aec0' }}>Seats</p>
-                    <p className="font-black text-sm truncate" style={{ color: '#1a202c' }}>{selectedSeats.join(', ')}</p>
+                    <p className="text-[9px] font-black mb-1 text-slate-400 uppercase tracking-widest">Seats</p>
+                    <p className="font-black text-sm text-slate-800 truncate">{selectedSeats.join(', ')}</p>
                   </div>
                 </div>
 
-                <div className="space-y-3 pt-4" style={{ borderTop: '1px solid #f1f5f9' }}>
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium" style={{ color: '#718096' }}>Base Fare ({selectedSeats.length} × ₹{bus.price})</p>
-                    <p className="font-black text-sm" style={{ color: '#1a202c' }}>₹{totalAmount}</p>
+                <div className="space-y-3.5 pt-4 border-t border-slate-100">
+                  <div className="flex justify-between items-center text-sm font-semibold text-slate-600">
+                    <span>Base Fare ({selectedSeats.length} × ₹{bus.price})</span>
+                    <span className="text-slate-800">₹{totalAmount}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-medium" style={{ color: '#718096' }}>Taxes & Fees</p>
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg" style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>Inclusive</span>
+                  <div className="flex justify-between items-center text-sm font-semibold text-slate-600">
+                    <span>Taxes & Fees</span>
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-green-50 text-green-700 border border-green-200">Inclusive</span>
                   </div>
-                  <div className="flex justify-between items-center pt-3" style={{ borderTop: '1px solid #f1f5f9' }}>
-                    <p className="text-lg font-black" style={{ color: '#1a202c' }}>Total</p>
-                    <p className="text-2xl font-black flex items-center" style={{ color: '#2dd4bf' }}>
+                  <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                    <p className="text-lg font-black text-slate-800">Total Amount</p>
+                    <p className="text-2xl font-black flex items-center text-teal-500">
                       <FaRupeeSign className="w-4 h-4 mr-0.5" />{totalAmount}
                     </p>
                   </div>
@@ -156,79 +324,138 @@ export default function Checkout() {
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               onClick={() => {
                 const token = localStorage.getItem('token');
-                if (!token) { window.dispatchEvent(new CustomEvent('openAuthModal', { detail: 'login' })); return; }
-                setStep('payment');
+                if (!token) { 
+                  window.dispatchEvent(new CustomEvent('openAuthModal', { detail: 'login' })); 
+                  return; 
+                }
+                setStep('passengers');
               }}
-              className="w-full text-white py-3.5 rounded-xl text-sm font-black btn-primary">
+              className="w-full text-white py-4 rounded-xl text-sm font-black btn-primary shadow-lg shadow-teal-500/25"
+            >
+              Proceed To Passenger Details
+            </motion.button>
+          </motion.div>
+        )}
+
+        {/* STEP 2: PASSENGER DETAILS FORM */}
+        {step === 'passengers' && (
+          <motion.div initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }}>
+            <div className="space-y-4 mb-6">
+              {passengers.map((passenger, idx) => (
+                <div key={passenger.seat} className="white-card p-5 border border-slate-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+                    <div className="w-6 h-6 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600">
+                      <FaUser className="w-3 h-3" />
+                    </div>
+                    <h3 className="font-black text-sm text-slate-800">Passenger {idx + 1} (Seat {passenger.seat})</h3>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Full Name</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. Jane Doe" 
+                        value={passenger.name}
+                        onChange={(e) => handlePassengerChange(idx, 'name', e.target.value)}
+                        className={inputCls} 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Age</label>
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="120"
+                          placeholder="e.g. 25" 
+                          value={passenger.age}
+                          onChange={(e) => handlePassengerChange(idx, 'age', e.target.value)}
+                          className={inputCls} 
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Gender</label>
+                        <select 
+                          value={passenger.gender}
+                          onChange={(e) => handlePassengerChange(idx, 'gender', e.target.value)}
+                          className={inputCls}
+                        >
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              onClick={handleProceedToPayment}
+              className="w-full text-white py-4 rounded-xl text-sm font-black btn-primary shadow-lg shadow-teal-500/25"
+            >
               Proceed To Payment
             </motion.button>
           </motion.div>
         )}
 
+        {/* STEP 3: PAYMENT SCREEN */}
         {step === 'payment' && (
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}>
-            <div className="flex items-center mb-5 relative">
-              <button onClick={() => setStep('review')}
-                className="absolute left-0 w-8 h-8 flex items-center justify-center rounded-xl transition-colors"
-                style={{ color: '#2dd4bf', border: '1.5px solid rgba(45,212,191,0.25)', background: 'rgba(45,212,191,0.06)' }}>
-                <FaArrowLeft className="w-3.5 h-3.5" />
-              </button>
-              <h2 className="text-2xl font-black text-center w-full" style={{ color: '#1a202c' }}>Payment</h2>
-            </div>
-
-            <div className="white-card p-5">
-              {/* Method tabs */}
+          <motion.div initial={{ opacity: 0, x: 15 }} animate={{ opacity: 1, x: 0 }}>
+            <div className="white-card p-5 border border-slate-200 shadow-sm mb-6">
+              {/* Method selector */}
               <div className="flex gap-3 mb-5">
-                {['card', 'upi'].map(m => (
-                  <button key={m} onClick={() => setPaymentMethod(m)}
-                    className="flex-1 py-3 px-3 rounded-xl flex flex-col items-center gap-1.5 font-bold text-sm transition-all"
+                {['card', 'upi'].map(method => (
+                  <button 
+                    key={method} 
+                    onClick={() => setPaymentMethod(method)}
+                    className="flex-1 py-3 px-3 rounded-xl flex flex-col items-center gap-1.5 font-bold text-sm transition-all border shadow-sm"
                     style={{
-                      border: paymentMethod === m ? '2px solid #2dd4bf' : '1.5px solid #e2e8f0',
-                      background: paymentMethod === m ? 'rgba(45,212,191,0.06)' : '#ffffff',
-                      color: paymentMethod === m ? '#0f766e' : '#718096',
-                    }}>
-                    {m === 'card' ? <FaRegCreditCard className="w-5 h-5" /> : <span className="font-black text-base">UPI</span>}
-                    {m === 'card' ? 'Card' : 'UPI'}
+                      border: paymentMethod === method ? '2px solid #2dd4bf' : '1px solid #e2e8f0',
+                      background: paymentMethod === method ? 'rgba(45,212,191,0.06)' : '#ffffff',
+                      color: paymentMethod === method ? '#0f766e' : '#718096',
+                    }}
+                  >
+                    {method === 'card' ? <FaRegCreditCard className="w-5 h-5 text-teal-500" /> : <span className="font-black text-base text-teal-500">UPI</span>}
+                    {method === 'card' ? 'Credit / Debit Card' : 'UPI Payment'}
                   </button>
                 ))}
               </div>
 
               <AnimatePresence mode="wait">
                 {paymentMethod === 'card' && (
-                  <motion.div key="card" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3 mb-5">
+                  <motion.div key="card" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4 mb-5">
                     <div>
-                      <label className="block text-[10px] font-black mb-1.5 uppercase tracking-widest" style={{ color: '#a0aec0' }}>Card Number</label>
-                      <input type="text" placeholder="0000 0000 0000 0000" className={inputCls}
-                        onFocus={e => e.target.style.borderColor = '#2dd4bf'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} />
+                      <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Card Number</label>
+                      <input type="text" placeholder="0000 0000 0000 0000" className={inputCls} />
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-4">
                       <div className="flex-1">
-                        <label className="block text-[10px] font-black mb-1.5 uppercase tracking-widest" style={{ color: '#a0aec0' }}>Expiry</label>
-                        <input type="text" placeholder="MM/YY" className={inputCls}
-                          onFocus={e => e.target.style.borderColor = '#2dd4bf'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} />
+                        <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Expiry Date</label>
+                        <input type="text" placeholder="MM/YY" className={inputCls} />
                       </div>
                       <div className="flex-1">
-                        <label className="block text-[10px] font-black mb-1.5 uppercase tracking-widest" style={{ color: '#a0aec0' }}>CVV</label>
-                        <input type="password" placeholder="***" className={inputCls}
-                          onFocus={e => e.target.style.borderColor = '#2dd4bf'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} />
+                        <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">CVV</label>
+                        <input type="password" placeholder="***" className={inputCls} />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[10px] font-black mb-1.5 uppercase tracking-widest" style={{ color: '#a0aec0' }}>Name on Card</label>
-                      <input type="text" placeholder="JOHN DOE" className={`${inputCls} uppercase`}
-                        onFocus={e => e.target.style.borderColor = '#2dd4bf'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} />
+                      <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">Name on Card</label>
+                      <input type="text" placeholder="JOHN DOE" className={`${inputCls} uppercase`} />
                     </div>
                   </motion.div>
                 )}
+
                 {paymentMethod === 'upi' && (
-                  <motion.div key="upi" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3 mb-5">
+                  <motion.div key="upi" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4 mb-5">
                     <div>
-                      <label className="block text-[10px] font-black mb-1.5 uppercase tracking-widest" style={{ color: '#a0aec0' }}>UPI ID</label>
-                      <input type="text" placeholder="username@upi" className={inputCls}
-                        onFocus={e => e.target.style.borderColor = '#2dd4bf'} onBlur={e => e.target.style.borderColor = '#e2e8f0'} />
+                      <label className="block text-[10px] font-black text-slate-400 mb-1.5 uppercase tracking-widest">UPI ID</label>
+                      <input type="text" placeholder="username@upi" className={inputCls} />
                     </div>
-                    <div className="p-3 rounded-xl text-xs text-center font-semibold" style={{ background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0' }}>
-                      A payment request will be sent to your UPI app for approval.
+                    <div className="p-3.5 rounded-xl text-xs text-center font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm">
+                      A payment request will be pushed to your UPI device for immediate approval.
                     </div>
                   </motion.div>
                 )}
@@ -236,20 +463,21 @@ export default function Checkout() {
 
               <motion.button whileHover={!loading ? { scale: 1.02 } : {}} whileTap={!loading ? { scale: 0.98 } : {}}
                 disabled={loading} onClick={handlePayment}
-                className="w-full text-white py-3.5 rounded-xl text-sm font-black btn-primary disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2">
+                className="w-full text-white py-4 rounded-xl text-sm font-black btn-primary disabled:opacity-60 disabled:cursor-wait flex items-center justify-center gap-2 shadow-lg shadow-teal-500/25"
+              >
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    Processing...
+                    Processing mock payment...
                   </span>
-                ) : <>Pay ₹{totalAmount} & Confirm</>}
+                ) : <>Pay ₹{totalAmount} & Book Ticket</>}
               </motion.button>
 
-              <p className="text-[10px] font-semibold text-center mt-3 flex items-center justify-center gap-1 uppercase tracking-widest" style={{ color: '#a0aec0' }}>
-                <FiShield className="w-3 h-3" style={{ color: '#2dd4bf' }} /> 256-bit Encrypted & Secure
+              <p className="text-[10px] font-bold text-center mt-4 flex items-center justify-center gap-1.5 text-slate-400 uppercase tracking-widest">
+                <FiShield className="w-3.5 h-3.5 text-teal-500" /> 256-bit SSL Encrypted & Secure Connection
               </p>
             </div>
           </motion.div>
