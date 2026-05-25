@@ -15,7 +15,7 @@ export default function BusDetails() {
   useEffect(() => {
     const fetchBus = async () => {
       try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/buses/${id}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/buses/search/${id}`);
         setBus(res.data);
       } catch (error) { console.error(error); }
       finally { setLoading(false); }
